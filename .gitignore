@@ -1,0 +1,61 @@
+# Compiled binaries and libraries
+bin/
+lib/
+*.o
+*.lo
+*.la
+*.so
+*.a
+*.dll
+*.exe
+
+# Build directories
+build/
+dist/
+
+# Logs
+logs/
+*.log
+
+# Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# MongoDB data
+/tmp/mongodb-data/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# TA-Lib build files
+ta-lib/autom4te.cache/
+ta-lib/bin/
+ta-lib/lib/
+ta-lib/src/**/*.o
+ta-lib/src/**/*.lo
+ta-lib/src/**/*.la
+
+# Temporary files
+*.tmp

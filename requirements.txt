@@ -1,0 +1,108 @@
+Python Dependencies
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install TA-Lib (may require additional steps depending on OS)
+# For Ubuntu:
+# sudo apt-get install build-essential
+# wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+# tar -xzf ta-lib-0.4.0-src.tar.gz
+# cd ta-lib/
+# ./configure --prefix=/usr
+# make
+# sudo make install
+# pip install ta-lib==0.4.26
+
+# Core dependencies
+# numpy==1.24.3  # Already installed
+# pandas==2.0.1  # Already installed
+# scipy==1.10.1  # Already installed
+# matplotlib==3.7.1  # Already installed
+pyyaml==6.0
+
+# API clients
+polygon-api-client==1.12.0
+alpaca-trade-api==3.0.0
+websocket-client==1.5.1
+# requests==2.30.0  # Already installed
+
+# ML/Data Science
+# torch==2.0.1  # Already installed
+# torchvision==0.15.2  # Already installed
+# scikit-learn==1.2.2  # Already installed
+ta-lib==0.4.26
+statsmodels==0.14.0
+pyportfolioopt==1.5.4
+empyrical==0.5.5
+
+# GPU Acceleration
+cudf-cu12==23.04.00
+cuml-cu12==23.04.00
+numba==0.57.0
+cupy-cuda12x==12.0.0
+
+# Web/API
+flask==2.3.2
+flask-cors==3.0.10
+flask-socketio==5.3.3
+python-dotenv==1.0.0
+gunicorn==20.1.0
+
+# Monitoring
+prometheus-client==0.16.0
+psutil==5.9.5
+py-cpuinfo==9.0.0
+gputil==1.4.0
+pynvml==11.5.0
+
+# Database
+redis==4.5.5
+pymongo==4.3.3
+
+# Utilities
+pydantic==1.10.8
+loguru==0.7.0
+tqdm==4.65.0
+# joblib==1.2.0  # Already installed
+# python-dateutil==2.8.2  # Already installed
+# pytz==2023.3  # Already installed
+# ujson==5.7.0  # Already installed
+
+# Testing
+pytest==7.3.1
+pytest-cov==4.1.0
+pytest-mock==3.10.0
+
+# Deployment
+# docker==6.1.1  # Removed as per user request
+ngrok-api==0.8.0
+pyngrok==6.0.0
+
+# Documentation
+sphinx==7.0.1
+sphinx-rtd-theme==1.2.1
+
+# For Ubuntu:
+# Add NVIDIA package repositories
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
+sudo mv cuda-ubuntu2204.pin /etc/apt/preferences.d/cuda-repository-pin-600
+sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/3bf863cc.pub
+sudo add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/ /"
+sudo apt-get update
+
+# Install CUDA
+sudo apt-get install -y cuda-toolkit-12-0
+
+# Install cuDNN
+sudo apt-get install -y libcudnn8 libcudnn8-dev
+
+# Install ngrok
+curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+sudo apt update
+sudo apt install -y ngrok
+
+# Configure ngrok with auth token
+ngrok config add-authtoken 2vB4mEpkOKCPryJJTqcnQZu17mU_2mHUjAc8Gp4egYp8iDVRJ
+
+# C++/CUDA dependencies are handled by CMake

@@ -1,0 +1,30 @@
+{
+  "name": "gh200-trading-monitor",
+  "version": "1.0.0",
+  "description": "Monitoring system for GH200 Trading System",
+  "main": "index.js",
+  "scripts": {
+    "start": "node api/metrics_api.js",
+    "dev": "nodemon api/metrics_api.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "ws": "^8.13.0",
+    "node-fetch": "^3.3.1",
+    "socket.io": "^4.6.1",
+    "winston": "^3.8.2",
+    "moment": "^2.29.4",
+    "chart.js": "^4.3.0",
+    "ngrok": "^5.0.0-beta.2",
+    "redis": "^4.5.5",
+    "mongodb": "^4.3.3"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "nodemon": "^2.0.22",
+    "supertest": "^6.3.3"
+  }
+}

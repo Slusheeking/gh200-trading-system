@@ -1,0 +1,142 @@
+# System Configuration for GH200 Trading System
+
+# System identification
+system:
+  name: "GH200 Trading System"
+  version: "1.0.0"
+  description: "High-performance trading system for NVIDIA GH200"
+
+# Hardware settings
+hardware:
+  # CUDA device settings
+  device: "cuda:0"
+  memory_limit_mb: 32000
+  num_cuda_streams: 4
+  use_tensor_cores: true
+  
+  # CPU core allocation
+  cpu_cores:
+    main_thread: 2
+    websocket: 3
+    inference: 4
+    risk: 5
+    execution: 6
+    monitoring: 7
+  
+  # Memory settings
+  use_huge_pages: true
+  preallocate_memory: true
+  preallocate_size_mb: 16000
+  
+  # Network settings
+  receive_buffer_size: 16777216
+  send_buffer_size: 8388608
+  tcp_nodelay: true
+
+# Data sources
+data_sources:
+  polygon:
+    enabled: true
+    api_key: "${POLYGON_API_KEY}"
+    websocket_url: "wss://socket.polygon.io/stocks"
+    rest_url: "https://api.polygon.io/v2"
+    max_symbols: 1000
+    reconnect_interval_ms: 5000
+    subscription_type: "T.* (trades)"  # T.* for trades, Q.* for quotes, AM.* for minute bars
+    
+  alpaca:
+    enabled: true
+    api_key: "${ALPACA_API_KEY}"
+    api_secret: "${ALPACA_API_SECRET}"
+    base_url: "https://paper-api.alpaca.markets"
+    data_url: "https://data.alpaca.markets"
+    websocket_url: "wss://stream.data.alpaca.markets/v2/sip"
+    use_websocket: true
+    
+  # Optional secondary data sources
+  alpha_vantage:
+    enabled: false
+    api_key: "${ALPHA_VANTAGE_API_KEY}"
+    base_url: "https://www.alphavantage.co/query"
+    
+  iex_cloud:
+    enabled: false
+    api_key: "${IEX_CLOUD_API_KEY}"
+    base_url: "https://cloud.iexapis.com/v1"
+
+# ML model settings
+ml:
+  # Model paths
+  model_paths:
+    pattern_recognition: "models/pattern_recognition.pt"
+    exit_optimization: "models/exit_optimization.pt"
+    ranking: "models/ranking_model.pkl"
+    sentiment: "models/sentiment_model"
+  
+  # Inference settings
+  inference:
+    batch_size: 64
+    use_fp16: true
+    max_batch_latency_ms: 5
+    inference_threads: 2
+    
+  # Feature extraction
+  features:
+    lookback_periods: 100
+    use_cuda_extraction: true
+    indicators:
+      - "rsi"
+      - "macd"
+      - "bollinger_bands"
+      - "vwap"
+      - "atr"
+
+# Performance settings
+performance:
+  # Latency targets
+  max_e2e_latency_us: 1000  # End-to-end latency target in microseconds
+  max_inference_latency_us: 500
+  max_execution_latency_us: 200
+  
+  # Monitoring
+  latency_monitoring: true
+  latency_log_interval_s: 60
+  performance_profiling: true
+  
+  # Optimization
+  use_lock_free_queues: true
+  use_zero_copy: true
+  websocket_parser_batch_size: 1000
+
+# Logging settings
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  file: "logs/trading_system.log"
+  max_file_size_mb: 100
+  max_files: 10
+  log_format: "[%(asctime)s] [%(levelname)s] [%(thread)d] %(message)s"
+  
+  # Performance logging
+  log_latency_stats: true
+  log_memory_usage: true
+  
+  # Zero-allocation logging
+  use_zero_alloc_logging: true
+  preallocated_log_buffer_size: 8192
+  flush_interval_ms: 1000
+
+# Monitoring
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_port: 8080
+  system_stats_interval_s: 5
+  
+  # Alerts
+  alert_on_high_latency: true
+  latency_alert_threshold_us: 5000
+  alert_on_error: true
+  
+  # Prometheus integration (if needed)
+  prometheus_enabled: false
+  prometheus_port: 9091
