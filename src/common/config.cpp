@@ -4,6 +4,7 @@
 
 #include <regex>
 #include <stdexcept>
+#include <iostream>
 
 #include <yaml-cpp/yaml.h>
 #include "trading_system/common/config.h"
@@ -21,7 +22,7 @@ Config::Config(const std::string& system_config_path, const std::string& trading
     // Load trading configuration
     loadTradingConfig(trading_config_path);
     
-    LOG_INFO("Configuration loaded from " + system_config_path + " and " + trading_config_path);
+    std::cout << "Configuration loaded from " << system_config_path << " and " << trading_config_path << std::endl;
 }
 
 const DataSourceConfig& Config::getDataSourceConfig(const std::string& source) const {
@@ -213,7 +214,7 @@ void Config::loadTradingConfig(const std::string& path) {
             trading_config_.orders.default_order_type = orders["default_order_type"].as<std::string>("market");
             trading_config_.orders.use_bracket_orders = orders["use_bracket_orders"].as<bool>(true);
             trading_config_.orders.time_in_force = orders["time_in_force"].as<std::string>("day");
-            trading_config_.orders.broker = "alpaca";  // Default broker
+            // Note: broker is handled elsewhere
         }
         
         // Parse strategy settings
@@ -251,21 +252,31 @@ void Config::loadTradingConfig(const std::string& path) {
 }
 
 std::string Config::expandEnvVars(const std::string& value) {
-    std::string result = value;
-    std::regex env_var_pattern("\\${([^}]+)}");
-    
-    std::smatch match;
-    while (std::regex_search(result, match, env_var_pattern)) {
-        std::string env_var_name = match[1].str();
-        const char* env_var_value = std::getenv(env_var_name.c_str());
-        
-        std::string replacement = env_var_value ? env_var_value : "";
-        result.replace(match[0].first - result.begin(), 
-                      match[0].length(), 
-                      replacement);
+    // If the value doesn't contain any environment variables, return it as is
+    if (value.find("${") == std::string::npos) {
+        return value;
     }
     
-    return result;
+    // Otherwise, try to expand environment variables
+    try {
+        std::string result = value;
+        std::regex env_var_pattern("\\$\\{([^}]+)\\}");
+        
+        std::smatch match;
+        while (std::regex_search(result, match, env_var_pattern)) {
+            std::string env_var_name = match[1].str();
+            const char* env_var_value = std::getenv(env_var_name.c_str());
+            
+            std::string replacement = env_var_value ? env_var_value : "dummy_value";
+            result.replace(match.position(0), match.length(0), replacement);
+        }
+        
+        return result;
+    } catch (const std::exception& e) {
+        // If there's an error, return the original value
+        std::cerr << "Error expanding environment variables: " << e.what() << std::endl;
+        return value;
+    }
 }
 
 void pinThreadToCore(int core_id) {

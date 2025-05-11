@@ -9,6 +9,7 @@
 #include <string>
 #include <chrono>
 #include <stdexcept>
+#include <iostream>
 
 #include "trading_system/common/config.h"
 #include "trading_system/common/logging.h"
@@ -54,7 +55,7 @@ __global__ void parseTradeDataKernel(
     // In a real implementation, this would parse JSON or binary data
     
     // Atomic increment of trade count
-    size_t trade_idx = atomicAdd(num_trades_parsed, 1);
+    size_t trade_idx = atomicAdd((unsigned long long int*)num_trades_parsed, 1ULL);
     
     // Fill trade data (placeholder)
     output_trades[trade_idx].price = 100.0;  // Placeholder
@@ -82,7 +83,7 @@ data::ParsedMarketData Parser::parse(const data::MarketData& market_data) {
     
     // Prepare output
     data::ParsedMarketData parsed_data;
-    parsed_data.timestamp = getCurrentTimestamp();
+    parsed_data.timestamp = this->getCurrentTimestamp();
     parsed_data.num_trades_processed = trades.size();
     parsed_data.num_quotes_processed = 0;
     
@@ -146,7 +147,8 @@ data::ParsedMarketData Parser::parse(const data::MarketData& market_data) {
         }
         
     } catch (const std::exception& e) {
-        LOG_ERROR("CUDA parser error: " + std::string(e.what()));
+        // Log error
+        std::cerr << "CUDA parser error: " << e.what() << std::endl;
     }
     
     return parsed_data;

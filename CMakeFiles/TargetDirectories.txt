@@ -1,0 +1,10 @@
+/home/ubuntu/inavvi2/CMakeFiles/trading_core.dir
+/home/ubuntu/inavvi2/CMakeFiles/ml_inference.dir
+/home/ubuntu/inavvi2/CMakeFiles/monitoring.dir
+/home/ubuntu/inavvi2/CMakeFiles/trading_system.dir
+/home/ubuntu/inavvi2/CMakeFiles/edit_cache.dir
+/home/ubuntu/inavvi2/CMakeFiles/rebuild_cache.dir
+/home/ubuntu/inavvi2/CMakeFiles/list_install_components.dir
+/home/ubuntu/inavvi2/CMakeFiles/install.dir
+/home/ubuntu/inavvi2/CMakeFiles/install/local.dir
+/home/ubuntu/inavvi2/CMakeFiles/install/strip.dir

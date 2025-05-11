@@ -1,0 +1,141 @@
+# Simplified Trading Configuration for GH200 Trading System
+
+# Account settings
+account:
+  initial_capital: 25000
+  max_positions: 10
+  base_currency: "USD"
+  account_type: "margin"  # cash, margin
+  leverage: 1.0  # 1.0 = no leverage
+  
+  # Position limits
+  max_position_value: 2500  # Maximum value per position ($)
+  min_position_value: 500   # Minimum value per position ($)
+  max_positions_per_sector: 3
+
+# Market settings
+market:
+  market_hours_only: true
+  pre_market_trading: false
+  after_hours_trading: false
+  
+  # Market hours (Eastern Time)
+  market_open: "09:30"
+  market_close: "16:00"
+  
+  # Trading universe
+  symbols_file: "config/symbols.txt"
+  min_price: 5.0
+  max_price: 500.0
+  min_volume: 500000
+  min_market_cap: 500000000  # $500M
+  
+  # Sectors/industries to include or exclude
+  excluded_sectors:
+    - "Cryptocurrency"
+  included_sectors: []  # Empty means all sectors except excluded
+
+# Risk management
+risk:
+  # Position sizing
+  max_position_size_pct: 5.0  # Maximum position size as % of account
+  position_sizing_method: "kelly"  # fixed, volatility, kelly
+  kelly_fraction: 0.5  # Conservative Kelly criterion (half-Kelly)
+  
+  # Risk limits
+  max_daily_drawdown_pct: 3.0
+  max_total_risk_pct: 15.0  # Maximum total portfolio risk
+  correlation_threshold: 0.7  # Maximum correlation between positions
+  
+  # Stop loss settings
+  use_stop_loss: true
+  default_stop_loss_pct: 2.0
+  max_stop_loss_pct: 5.0
+  
+  # Take profit settings
+  use_take_profit: true
+  default_take_profit_pct: 3.0
+  min_risk_reward_ratio: 1.5  # Minimum risk/reward ratio
+  
+  # Trailing stop settings
+  use_trailing_stop: true
+  trailing_stop_pct: 1.5
+  trailing_stop_activation_pct: 1.0  # Activate after 1% profit
+
+# Order settings
+orders:
+  # Order types
+  default_order_type: "market"  # market, limit
+  use_bracket_orders: true
+  use_oco_orders: false
+  
+  # Execution settings
+  time_in_force: "day"  # day, gtc, ioc
+  allow_partial_fills: true
+  
+  # Smart order routing
+  smart_routing: false
+  max_slippage_bps: 20  # Maximum allowed slippage in basis points
+  
+  # Rate limiting
+  max_orders_per_second: 5
+  max_orders_per_minute: 20
+
+# Trading strategies
+strategies:
+  # Pattern recognition strategy
+  pattern_recognition:
+    enabled: true
+    confidence_threshold: 0.7
+    patterns:
+      - "bullish_engulfing"
+      - "hammer"
+      - "morning_star"
+      - "cup_and_handle"
+      - "breakout"
+    
+  # Momentum strategy
+  momentum:
+    enabled: true
+    lookback_period: 20
+    threshold: 1.5
+    volume_factor: 2.0
+    
+  # Mean reversion strategy
+  mean_reversion:
+    enabled: true
+    zscore_threshold: 2.0
+    lookback_period: 10
+    
+  # Strategy weights (for ensemble)
+  strategy_weights:
+    pattern_recognition: 0.4
+    momentum: 0.3
+    mean_reversion: 0.3
+
+# Exit conditions
+exit:
+  # Time-based exits
+  max_holding_time_minutes: 240  # 4 hours
+  check_exit_interval_seconds: 60
+  
+  # ML-based exit optimization
+  use_ml_exit: true
+  exit_confidence_threshold: 0.6
+  
+  # Market condition exits
+  exit_on_high_volatility: true
+  vix_threshold: 30
+  
+  # End of day
+  close_positions_eod: true
+  eod_exit_time: "15:45"  # 15 minutes before market close
+
+# Backtesting settings (if needed)
+backtest:
+  start_date: "2023-01-01"
+  end_date: "2023-12-31"
+  initial_capital: 25000
+  commission_per_share: 0.005
+  slippage_model: "fixed"  # fixed, percentage
+  slippage_bps: 5

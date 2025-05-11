@@ -51,6 +51,9 @@ private:
     
     // Launch CUDA kernel for parsing
     void launchParserKernel(const void* input_data, size_t input_size);
+    
+    // Get current timestamp in nanoseconds
+    uint64_t getCurrentTimestamp();
 };
 
 } // namespace cuda

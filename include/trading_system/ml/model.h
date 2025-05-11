@@ -66,8 +66,6 @@ public:
     
 private:
     // Implementation details
-    class Impl;
-    std::unique_ptr<Impl> impl_;
 };
 
 // ONNX model implementation
@@ -97,8 +95,6 @@ public:
     
 private:
     // Implementation details
-    class Impl;
-    std::unique_ptr<Impl> impl_;
 };
 
 } // namespace ml

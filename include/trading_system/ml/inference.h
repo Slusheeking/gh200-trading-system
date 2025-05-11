@@ -11,6 +11,7 @@
 #include "trading_system/common/config.h"
 #include "trading_system/data/market_data.h"
 #include "trading_system/ml/signals.h"
+#include "trading_system/ml/model.h"
 
 namespace trading_system {
 namespace ml {

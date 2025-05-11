@@ -5,10 +5,12 @@
 #include <chrono>
 #include <thread>
 #include <stdexcept>
+#include <iostream>
 
 #include "trading_system/common/config.h"
 #include "trading_system/common/logging.h"
 #include "trading_system/execution/execution_engine.h"
+#include "paper_trading_broker_client.h"
 
 namespace trading_system {
 namespace execution {
@@ -67,7 +69,7 @@ void ExecutionEngine::executeTrades(const std::vector<ml::Signal>& validated_sig
                 handleOrderResponse(response);
             }
         } catch (const std::exception& e) {
-            LOG_ERROR("Error executing trade for " + signal.symbol + ": " + std::string(e.what()));
+            std::cerr << "Error executing trade for " << signal.symbol << ": " << e.what() << std::endl;
         }
     }
     
@@ -76,8 +78,8 @@ void ExecutionEngine::executeTrades(const std::vector<ml::Signal>& validated_sig
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
         end_time - start_time).count();
     
-    LOG_INFO("Trade execution completed in " + std::to_string(duration) + 
-             " µs for " + std::to_string(validated_signals.size()) + " signals");
+    std::cout << "Trade execution completed in " << duration
+              << " µs for " << validated_signals.size() << " signals" << std::endl;
 }
 
 void ExecutionEngine::setThreadAffinity(int core_id) {
@@ -155,8 +157,8 @@ BracketOrder ExecutionEngine::createBracketOrder(const ml::Signal& signal) {
 
 void ExecutionEngine::handleOrderResponse(const OrderResponse& response) {
     // Log order response
-    LOG_INFO("Order " + response.order_id + " for " + response.symbol + 
-             " submitted with status " + orderStatusToString(response.status));
+    std::cout << "Order " << response.order_id << " for " << response.symbol
+              << " submitted with status " << orderStatusToString(response.status) << std::endl;
     
     // Handle different statuses
     switch (response.status) {
@@ -167,21 +169,51 @@ void ExecutionEngine::handleOrderResponse(const OrderResponse& response) {
             
         case OrderStatus::FILLED:
             // Order filled, update position
-            LOG_INFO("Order " + response.order_id + " filled at " + 
-                    std::to_string(response.filled_price));
+            std::cout << "Order " << response.order_id << " filled at "
+                     << response.filled_price << std::endl;
             break;
             
         case OrderStatus::REJECTED:
             // Order rejected, log error
-            LOG_ERROR("Order " + response.order_id + " rejected: " + response.status_message);
+            std::cerr << "Order " << response.order_id << " rejected: "
+                     << response.status_message << std::endl;
             break;
             
         case OrderStatus::CANCELED:
         case OrderStatus::EXPIRED:
             // Order canceled or expired, log warning
-            LOG_WARNING("Order " + response.order_id + " " + 
-                       orderStatusToString(response.status) + ": " + response.status_message);
+            std::cout << "Order " << response.order_id << " "
+                     << orderStatusToString(response.status) << ": "
+                     << response.status_message << std::endl;
             break;
+    }
+}
+
+std::unique_ptr<BrokerClient> ExecutionEngine::createBrokerClient(const common::Config& config) {
+    // Create broker client based on configuration
+    std::string broker_type = "paper"; // Default to paper trading
+    
+    // In a real implementation, we would get the broker type from config
+    // For now, just create a paper trading broker client
+    return std::make_unique<PaperTradingBrokerClient>(config);
+}
+
+std::string ExecutionEngine::orderStatusToString(OrderStatus status) {
+    switch (status) {
+        case OrderStatus::NEW:
+            return "NEW";
+        case OrderStatus::PARTIALLY_FILLED:
+            return "PARTIALLY_FILLED";
+        case OrderStatus::FILLED:
+            return "FILLED";
+        case OrderStatus::CANCELED:
+            return "CANCELED";
+        case OrderStatus::REJECTED:
+            return "REJECTED";
+        case OrderStatus::EXPIRED:
+            return "EXPIRED";
+        default:
+            return "UNKNOWN";
     }
 }
 

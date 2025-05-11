@@ -1,0 +1,105 @@
+# Simplified System Configuration for GH200 Trading System
+
+# System identification
+system:
+  name: "GH200 Trading System"
+  version: "1.0.0"
+  description: "High-performance trading system for NVIDIA GH200"
+
+# Hardware settings
+hardware:
+  # CUDA device settings
+  device: "cuda:0"
+  memory_limit_mb: 32000
+  num_cuda_streams: 4
+  use_tensor_cores: true
+  
+  # CPU core allocation
+  cpu_cores:
+    main_thread: 2
+    websocket: 3
+    inference: 4
+    risk: 5
+    execution: 6
+    monitoring: 7
+  
+  # Memory settings
+  use_huge_pages: true
+  preallocate_memory: true
+  preallocate_size_mb: 16000
+  
+  # Network settings
+  receive_buffer_size: 16777216
+  send_buffer_size: 8388608
+  tcp_nodelay: true
+
+# Data sources
+data_sources:
+  polygon:
+    enabled: false  # Disabled since we don't have real API keys
+    api_key: "dummy_key"
+    websocket_url: "wss://socket.polygon.io/stocks"
+    rest_url: "https://api.polygon.io/v2"
+    reconnect_interval_ms: 5000
+    subscription_type: "T.*"
+  
+  alpaca:
+    enabled: false  # Disabled since we don't have real API keys
+    api_key: "dummy_key"
+    api_secret: "dummy_secret"
+    base_url: "https://paper-api.alpaca.markets"
+    websocket_url: "wss://stream.data.alpaca.markets/v2/sip"
+
+# ML configuration
+ml:
+  model_paths:
+    pattern_recognition: "models/pattern_recognition.pt"
+    exit_optimization: "models/exit_optimization.pt"
+    ranking: ""
+    sentiment: ""
+  
+  inference:
+    batch_size: 64
+    use_fp16: true
+    max_batch_latency_ms: 5
+    inference_threads: 2
+  
+  features:
+    lookback_periods: 100
+    use_cuda_extraction: true
+    indicators:
+      - "rsi"
+      - "macd"
+      - "bollinger_bands"
+      - "atr"
+
+# Performance configuration
+performance:
+  max_e2e_latency_us: 1000
+  max_inference_latency_us: 500
+  max_execution_latency_us: 200
+  
+  latency_monitoring: true
+  latency_log_interval_s: 60
+  performance_profiling: true
+  
+  use_lock_free_queues: true
+  use_zero_copy: true
+  websocket_parser_batch_size: 1000
+
+# Logging configuration
+logging:
+  level: "INFO"
+  file: "logs/trading_system.log"
+  max_file_size_mb: 100
+  max_files: 10
+  log_format: "[%(asctime)s] [%(levelname)s] [%(thread)d] %(message)s"
+  
+  log_latency_stats: true
+  log_memory_usage: true
+  
+  use_zero_alloc_logging: true
+  preallocated_log_buffer_size: 8192
+  flush_interval_ms: 1000
+  
+  latency_log_interval_s: 60

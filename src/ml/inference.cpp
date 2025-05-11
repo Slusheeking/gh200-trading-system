@@ -6,6 +6,7 @@
 #include <thread>
 #include <string>
 #include <stdexcept>
+#include <iostream>
 
 #include "trading_system/common/config.h"
 #include "trading_system/common/logging.h"
@@ -59,7 +60,7 @@ std::vector<Signal> InferenceEngine::infer(const data::ParsedMarketData& parsed_
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
         end_time - start_time).count();
     
-    LOG_INFO("ML inference completed in " + std::to_string(duration) + " µs");
+    std::cout << "ML inference completed in " << duration << " µs" << std::endl;
     
     return signals;
 }
@@ -79,7 +80,7 @@ void InferenceEngine::loadModels(const common::Config& config) {
         if (!pattern_path.empty()) {
             pattern_recognition_model_ = std::make_unique<PyTorchModel>();
             pattern_recognition_model_->load(pattern_path);
-            LOG_INFO("Loaded pattern recognition model: " + pattern_path);
+            std::cout << "Loaded pattern recognition model: " << pattern_path << std::endl;
         }
         
         // Load exit optimization model
@@ -87,7 +88,7 @@ void InferenceEngine::loadModels(const common::Config& config) {
         if (!exit_path.empty()) {
             exit_optimization_model_ = std::make_unique<PyTorchModel>();
             exit_optimization_model_->load(exit_path);
-            LOG_INFO("Loaded exit optimization model: " + exit_path);
+            std::cout << "Loaded exit optimization model: " << exit_path << std::endl;
         }
         
         // Load ranking model
@@ -95,7 +96,7 @@ void InferenceEngine::loadModels(const common::Config& config) {
         if (!ranking_path.empty()) {
             ranking_model_ = std::make_unique<PyTorchModel>();
             ranking_model_->load(ranking_path);
-            LOG_INFO("Loaded ranking model: " + ranking_path);
+            std::cout << "Loaded ranking model: " << ranking_path << std::endl;
         }
         
         // Load sentiment model
@@ -103,10 +104,10 @@ void InferenceEngine::loadModels(const common::Config& config) {
         if (!sentiment_path.empty()) {
             sentiment_model_ = std::make_unique<PyTorchModel>();
             sentiment_model_->load(sentiment_path);
-            LOG_INFO("Loaded sentiment model: " + sentiment_path);
+            std::cout << "Loaded sentiment model: " << sentiment_path << std::endl;
         }
     } catch (const std::exception& e) {
-        LOG_ERROR("Error loading models: " + std::string(e.what()));
+        std::cerr << "Error loading models: " << e.what() << std::endl;
     }
 }
 

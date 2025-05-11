@@ -19,9 +19,9 @@ namespace common {
 ZeroAllocLogger g_logger("trading_system");
 
 ZeroAllocLogger::ZeroAllocLogger(const std::string& name, LogLevel level)
-    : name_(name),
+    : write_index_(0),
+      name_(name),
       level_(level),
-      write_index_(0),
       running_(true) {
     
     // Open log file
@@ -81,9 +81,6 @@ void ZeroAllocLogger::flush() {
     if (!file_.is_open()) {
         return;
     }
-    
-    // Get current index
-    size_t current_index = write_index_.load();
     
     // Write all entries
     for (size_t i = 0; i < BUFFER_SIZE; ++i) {

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <numeric>
 #include <algorithm>
+#include <iostream>
 
 #include "trading_system/common/config.h"
 #include "trading_system/common/logging.h"
@@ -62,9 +63,9 @@ std::vector<ml::Signal> RiskManager::validateSignals(const std::vector<ml::Signa
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
         end_time - start_time).count();
     
-    LOG_INFO("Risk validation completed in " + std::to_string(duration) + 
-             " µs, validated " + std::to_string(validated_signals.size()) + 
-             " of " + std::to_string(signals.size()) + " signals");
+    std::cout << "Risk validation completed in " << duration
+              << " µs, validated " << validated_signals.size()
+              << " of " << signals.size() << " signals" << std::endl;
     
     return validated_signals;
 }
@@ -146,14 +147,14 @@ double RiskManager::calculatePositionSize(const ml::Signal& signal) {
 bool RiskManager::passesRiskChecks(const ml::Signal& signal, double position_size) {
     // Check daily drawdown
     if (daily_pnl_ < -account_value_ * (max_daily_drawdown_pct_ / 100.0)) {
-        LOG_WARNING("Daily drawdown limit reached, rejecting signal for " + signal.symbol);
+        std::cerr << "Daily drawdown limit reached, rejecting signal for " << signal.symbol << std::endl;
         return false;
     }
     
     // Check total risk
     double signal_risk = position_size * 0.01;  // Assume 1% risk per trade
     if (total_risk_ + signal_risk > account_value_ * (max_total_risk_pct_ / 100.0)) {
-        LOG_WARNING("Total risk limit reached, rejecting signal for " + signal.symbol);
+        std::cerr << "Total risk limit reached, rejecting signal for " << signal.symbol << std::endl;
         return false;
     }
     
@@ -161,14 +162,14 @@ bool RiskManager::passesRiskChecks(const ml::Signal& signal, double position_siz
     {
         std::lock_guard<std::mutex> lock(positions_mutex_);
         if (positions_.count(signal.symbol)) {
-            LOG_WARNING("Position already exists for " + signal.symbol + ", rejecting signal");
+            std::cerr << "Position already exists for " << signal.symbol << ", rejecting signal" << std::endl;
             return false;
         }
     }
     
     // Check portfolio constraints
     if (!checkPortfolioConstraints(signal, position_size)) {
-        LOG_WARNING("Portfolio constraints not met, rejecting signal for " + signal.symbol);
+        std::cerr << "Portfolio constraints not met, rejecting signal for " << signal.symbol << std::endl;
         return false;
     }
     
@@ -211,6 +212,10 @@ double RiskManager::calculateKellyPositionSize(const ml::Signal& signal) {
 bool RiskManager::checkPortfolioConstraints(const ml::Signal& signal, double position_size) {
     // This is a simplified implementation
     // In a real system, this would check sector exposure, correlation, etc.
+    
+    // Avoid unused parameter warnings
+    (void)signal;
+    (void)position_size;
     
     // Check maximum number of positions
     std::lock_guard<std::mutex> lock(positions_mutex_);

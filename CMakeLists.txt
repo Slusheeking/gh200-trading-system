@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 project(TradingSystem LANGUAGES CXX CUDA)
 
 # C++ standard
@@ -26,9 +26,22 @@ find_package(CUDA REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread filesystem program_options)
 find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(nlohmann_json REQUIRED)
-find_package(spdlog REQUIRED)
-find_package(TBB REQUIRED)
+find_package(CURL REQUIRED)
+# Find nlohmann_json
+find_path(NLOHMANN_JSON_INCLUDE_DIR nlohmann/json.hpp REQUIRED)
+include_directories(${NLOHMANN_JSON_INCLUDE_DIR})
+# Find spdlog
+find_path(SPDLOG_INCLUDE_DIR spdlog/spdlog.h REQUIRED)
+include_directories(${SPDLOG_INCLUDE_DIR})
+# Find TBB
+find_path(TBB_INCLUDE_DIR tbb/tbb.h REQUIRED)
+find_library(TBB_LIBRARY tbb REQUIRED)
+include_directories(${TBB_INCLUDE_DIR})
+# Find yaml-cpp
+find_path(YAML_CPP_INCLUDE_DIR yaml-cpp/yaml.h REQUIRED)
+find_library(YAML_CPP_LIBRARY yaml-cpp REQUIRED)
+include_directories(${YAML_CPP_INCLUDE_DIR})
+
 find_package(Threads REQUIRED)
 
 # Include directories
@@ -48,6 +61,12 @@ add_library(trading_core SHARED
     src/execution/order.cpp
     src/execution/execution_engine.cpp
     src/execution/broker_client.cpp
+    src/execution/paper_trading_broker_client.cpp
+    src/common/config.cpp
+    src/common/logging.cpp
+    src/risk/risk_manager.cpp
+    src/ml/inference.cpp
+    src/ml/model.cpp
 )
 
 # Link libraries
@@ -57,10 +76,11 @@ target_link_libraries(trading_core
     OpenSSL::SSL
     OpenSSL::Crypto
     ZLIB::ZLIB
-    nlohmann_json::nlohmann_json
-    spdlog::spdlog
-    TBB::tbb
+    spdlog
+    ${TBB_LIBRARY}
+    ${YAML_CPP_LIBRARY}
     Threads::Threads
+    ${CURL_LIBRARIES}
 )
 
 # Add ML inference library
@@ -80,8 +100,7 @@ add_library(monitoring SHARED
 
 target_link_libraries(monitoring
     ${Boost_LIBRARIES}
-    nlohmann_json::nlohmann_json
-    spdlog::spdlog
+    spdlog
     Threads::Threads
 )
 

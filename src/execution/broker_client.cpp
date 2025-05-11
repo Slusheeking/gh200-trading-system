@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <iostream>
 
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
@@ -132,7 +133,7 @@ public:
         return response.empty();
     }
     
-    std::vector<Position> getPositions() override {
+    std::vector<risk::Position> getPositions() override {
         // Send request
         std::string response = sendRequest("GET", "/v2/positions", "");
         
@@ -207,7 +208,7 @@ private:
         // Perform request
         CURLcode res = curl_easy_perform(curl_);
         if (res != CURLE_OK) {
-            LOG_ERROR("CURL error: " + std::string(curl_easy_strerror(res)));
+            std::cerr << "CURL error: " << curl_easy_strerror(res) << std::endl;
             return "";
         }
         
@@ -215,7 +216,7 @@ private:
         long response_code;
         curl_easy_getinfo(curl_, CURLINFO_RESPONSE_CODE, &response_code);
         if (response_code >= 400) {
-            LOG_ERROR("HTTP error: " + std::to_string(response_code) + " - " + response_buffer_);
+            std::cerr << "HTTP error: " << response_code << " - " << response_buffer_ << std::endl;
             return "";
         }
         
@@ -252,7 +253,7 @@ private:
             }
             
         } catch (const std::exception& e) {
-            LOG_ERROR("Error parsing order response: " + std::string(e.what()));
+            std::cerr << "Error parsing order response: " << e.what() << std::endl;
         }
         
         return result;
@@ -287,34 +288,33 @@ private:
             }
             
         } catch (const std::exception& e) {
-            LOG_ERROR("Error parsing orders response: " + std::string(e.what()));
+            std::cerr << "Error parsing orders response: " << e.what() << std::endl;
         }
         
         return results;
     }
     
     // Parse positions response
-    std::vector<Position> parsePositionsResponse(const std::string& response) {
-        std::vector<Position> results;
+    std::vector<risk::Position> parsePositionsResponse(const std::string& response) {
+        std::vector<risk::Position> results;
         
         try {
             json j = json::parse(response);
             
             for (const auto& pos_json : j) {
-                Position position;
+                risk::Position position;
                 
                 position.symbol = pos_json["symbol"];
                 position.quantity = std::stod(pos_json["qty"].get<std::string>());
                 position.entry_price = std::stod(pos_json["avg_entry_price"].get<std::string>());
                 position.current_price = std::stod(pos_json["current_price"].get<std::string>());
-                position.market_value = std::stod(pos_json["market_value"].get<std::string>());
-                position.unrealized_pl = std::stod(pos_json["unrealized_pl"].get<std::string>());
+                position.unrealized_pnl = std::stod(pos_json["unrealized_pl"].get<std::string>());
                 
                 results.push_back(position);
             }
             
         } catch (const std::exception& e) {
-            LOG_ERROR("Error parsing positions response: " + std::string(e.what()));
+            std::cerr << "Error parsing positions response: " << e.what() << std::endl;
         }
         
         return results;
@@ -329,12 +329,12 @@ private:
             
             result.account_id = j["id"];
             result.cash = std::stod(j["cash"].get<std::string>());
-            result.portfolio_value = std::stod(j["portfolio_value"].get<std::string>());
+            // Store portfolio value in equity since AccountInfo doesn't have portfolio_value
+            result.equity = std::stod(j["portfolio_value"].get<std::string>());
             result.buying_power = std::stod(j["buying_power"].get<std::string>());
-            result.equity = std::stod(j["equity"].get<std::string>());
             
         } catch (const std::exception& e) {
-            LOG_ERROR("Error parsing account info response: " + std::string(e.what()));
+            std::cerr << "Error parsing account info response: " << e.what() << std::endl;
         }
         
         return result;

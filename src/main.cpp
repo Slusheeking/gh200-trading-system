@@ -54,14 +54,12 @@ int main(int argc, char** argv) {
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTERM, signalHandler);
         
-        // Initialize zero-allocation logging
-        common::ZeroAllocLogger logger("trading_system");
-        logger.setLevel(vm["log-level"].as<std::string>());
-        logger.log(LogLevel::INFO, "Starting GH200 Trading System");
+        // Initialize logging
+        std::cout << "Starting GH200 Trading System" << std::endl;
         
         // Load configuration
         common::Config config(vm["config"].as<std::string>(), vm["trading-config"].as<std::string>());
-        logger.log(LogLevel::INFO, "Configuration loaded");
+        std::cout << "Configuration loaded" << std::endl;
         
         // Pin main thread to core 2
         common::pinThreadToCore(config.getHardwareConfig().cpu_cores.main_thread);
@@ -79,14 +77,15 @@ int main(int argc, char** argv) {
         riskManager.setThreadAffinity(config.getHardwareConfig().cpu_cores.risk);
         executionEngine.setThreadAffinity(config.getHardwareConfig().cpu_cores.execution);
         
-        logger.log(LogLevel::INFO, "All components initialized");
+        std::cout << "All components initialized" << std::endl;
         
         // Connect WebSocket
         wsClient.connect();
-        logger.log(LogLevel::INFO, "WebSocket connected");
+        std::cout << "WebSocket connected" << std::endl;
         
         // Pre-allocate memory for market data
-        auto marketData = data::MarketData::createPreallocated(config.getPerformanceConfig().websocket_parser_batch_size);
+        auto marketDataPtr = data::MarketData::createPreallocated(config.getPerformanceConfig().websocket_parser_batch_size);
+        data::MarketData& marketData = *marketDataPtr; // Get reference to the MarketData object
         
         // Performance monitoring
         uint64_t cycle_count = 0;
@@ -126,8 +125,8 @@ int main(int argc, char** argv) {
             
             if (stats_elapsed >= config.getLoggingConfig().latency_log_interval_s) {
                 double avg_latency_us = (total_latency_ns / static_cast<double>(cycle_count)) / 1000.0;
-                logger.log(LogLevel::INFO, "Performance: " + std::to_string(cycle_count) + 
-                          " cycles, avg latency: " + std::to_string(avg_latency_us) + " µs");
+                std::cout << "Performance: " << cycle_count
+                          << " cycles, avg latency: " << avg_latency_us << " µs" << std::endl;
                 
                 // Reset counters
                 cycle_count = 0;
@@ -137,16 +136,16 @@ int main(int argc, char** argv) {
             
             // Check if latency exceeds threshold
             if (cycle_latency / 1000 > config.getPerformanceConfig().max_e2e_latency_us) {
-                logger.log(LogLevel::WARNING, "High latency detected: " + 
-                          std::to_string(cycle_latency / 1000) + " µs");
+                std::cerr << "High latency detected: "
+                          << (cycle_latency / 1000) << " µs" << std::endl;
             }
         }
         
         // Cleanup
         wsClient.disconnect();
-        logger.log(LogLevel::INFO, "WebSocket disconnected");
+        std::cout << "WebSocket disconnected" << std::endl;
         
-        logger.log(LogLevel::INFO, "Trading system shutdown complete");
+        std::cout << "Trading system shutdown complete" << std::endl;
         return 0;
     } catch (const std::exception& e) {
         std::cerr << "Fatal error: " << e.what() << std::endl;

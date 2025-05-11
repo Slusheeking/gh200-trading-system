@@ -5,6 +5,9 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 
 #include <boost/beast/core.hpp>
 #include <boost/beast/websocket.hpp>
@@ -19,6 +22,7 @@
 #include "trading_system/data/websocket_client.h"
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
@@ -38,25 +42,47 @@ public:
           running_(false),
           connected_(false) {
         
+        // Try to read API keys from credentials file
+        std::unordered_map<std::string, std::string> credentials = readCredentialsFile();
+        bool has_credentials = !credentials.empty();
+        
+        if (has_credentials) {
+            std::cout << "Found API keys in credentials file" << std::endl;
+        }
+        
         // Get data source config
         const auto& polygon_config = config.getDataSourceConfig("polygon");
         const auto& alpaca_config = config.getDataSourceConfig("alpaca");
         
         // Set up data sources
         if (polygon_config.enabled) {
+            // Use API key from credentials file if available
+            std::string api_key = polygon_config.api_key;
+            if (has_credentials && credentials.find("POLYGON_API_KEY") != credentials.end()) {
+                api_key = credentials["POLYGON_API_KEY"];
+                std::cout << "Using Polygon API key from credentials file" << std::endl;
+            }
+            
             data_sources_.push_back({
                 "polygon",
                 polygon_config.websocket_url,
-                polygon_config.api_key,
+                api_key,
                 polygon_config.subscription_type
             });
         }
         
         if (alpaca_config.enabled) {
+            // Use API key from credentials file if available
+            std::string api_key = alpaca_config.api_key;
+            if (has_credentials && credentials.find("ALPACA_API_KEY") != credentials.end()) {
+                api_key = credentials["ALPACA_API_KEY"];
+                std::cout << "Using Alpaca API key from credentials file" << std::endl;
+            }
+            
             data_sources_.push_back({
                 "alpaca",
                 alpaca_config.websocket_url,
-                alpaca_config.api_key,
+                api_key,
                 "trades"  // Default subscription
             });
         }
@@ -86,6 +112,13 @@ public:
         
         running_ = true;
         
+        // Check if any data sources are enabled
+        if (data_sources_.empty()) {
+            std::cout << "No data sources enabled. Running in simulation mode." << std::endl;
+            connected_ = true;  // Mark as connected to avoid timeout error
+            return;
+        }
+        
         // Start worker thread
         worker_thread_ = std::thread([this]() {
             try {
@@ -97,7 +130,7 @@ public:
                 // Run IO context
                 io_context_.run();
             } catch (const std::exception& e) {
-                LOG_ERROR("WebSocket worker thread exception: " + std::string(e.what()));
+                std::cerr << "WebSocket worker thread exception: " << e.what() << std::endl;
             }
         });
         
@@ -108,10 +141,14 @@ public:
         
         // Wait for connection
         std::unique_lock<std::mutex> lock(mutex_);
-        cv_.wait_for(lock, std::chrono::seconds(5), [this]() { return connected_; });
+        bool is_connected = false;
+        cv_.wait_for(lock, std::chrono::seconds(5), [this, &is_connected]() {
+            is_connected = connected_.load();
+            return is_connected;
+        });
         
-        if (!connected_) {
-            LOG_ERROR("Failed to connect to any data source within timeout");
+        if (!connected_ && !data_sources_.empty()) {
+            std::cerr << "Failed to connect to any data source within timeout" << std::endl;
         }
     }
     
@@ -128,7 +165,7 @@ public:
             try {
                 ws->close(websocket::close_code::normal);
             } catch (const std::exception& e) {
-                LOG_ERROR("Error closing WebSocket: " + std::string(e.what()));
+                std::cerr << "Error closing WebSocket: " << e.what() << std::endl;
             }
         }
         
@@ -165,6 +202,37 @@ private:
         std::string api_key;
         std::string subscription;
     };
+    
+    // Read API keys from credentials file
+    std::unordered_map<std::string, std::string> readCredentialsFile() {
+        std::unordered_map<std::string, std::string> credentials;
+        
+        // Try to open the credentials file
+        std::ifstream file("/etc/trading-system/credentials");
+        if (!file.is_open()) {
+            std::cerr << "Warning: Could not open credentials file at /etc/trading-system/credentials" << std::endl;
+            return credentials;
+        }
+        
+        // Read each line
+        std::string line;
+        while (std::getline(file, line)) {
+            // Skip empty lines
+            if (line.empty()) {
+                continue;
+            }
+            
+            // Parse key=value format
+            size_t pos = line.find('=');
+            if (pos != std::string::npos) {
+                std::string key = line.substr(0, pos);
+                std::string value = line.substr(pos + 1);
+                credentials[key] = value;
+            }
+        }
+        
+        return credentials;
+    }
     
     // Configuration
     const common::Config& config_;
@@ -230,7 +298,7 @@ private:
                 beast::role_type::client));
             
             // Connect to endpoint
-            net::connect(ws->next_layer(), results.begin(), results.end());
+            beast::get_lowest_layer(ws->next_layer()).connect(results);
             
             // Perform WebSocket handshake
             ws->handshake(host, path);
@@ -252,11 +320,21 @@ private:
                 ws->write(net::buffer(subscribe.dump()));
             } else if (source.name == "alpaca") {
                 // Alpaca authentication
+                const auto& alpaca_config = config_.getDataSourceConfig("alpaca");
+                
+                // Try to get API secret from credentials file
+                std::string api_secret = alpaca_config.api_secret;
+                std::unordered_map<std::string, std::string> credentials = readCredentialsFile();
+                if (!credentials.empty() && credentials.find("ALPACA_API_SECRET") != credentials.end()) {
+                    api_secret = credentials["ALPACA_API_SECRET"];
+                    std::cout << "Using Alpaca API secret from credentials file" << std::endl;
+                }
+                
                 json auth = {
                     {"action", "authenticate"},
                     {"data", {
                         {"key_id", source.api_key},
-                        {"secret_key", "YOUR_SECRET_KEY"}  // Should come from config
+                        {"secret_key", api_secret}
                     }}
                 };
                 ws->write(net::buffer(auth.dump()));
@@ -284,9 +362,9 @@ private:
             // Notify connection
             cv_.notify_all();
             
-            LOG_INFO("Connected to " + source.name + " WebSocket");
+            std::cout << "Connected to " << source.name << " WebSocket" << std::endl;
         } catch (const std::exception& e) {
-            LOG_ERROR("Error connecting to " + source.name + ": " + std::string(e.what()));
+            std::cerr << "Error connecting to " << source.name << ": " << e.what() << std::endl;
         }
     }
     
@@ -297,8 +375,9 @@ private:
         ws->async_read(
             *buffer,
             [this, ws, buffer](beast::error_code ec, std::size_t bytes_transferred) {
+                (void)bytes_transferred; // Unused parameter
                 if (ec) {
-                    LOG_ERROR("WebSocket read error: " + ec.message());
+                    std::cerr << "WebSocket read error: " << ec.message() << std::endl;
                     return;
                 }
                 
@@ -348,7 +427,7 @@ private:
                 data_buffer_.push_back(trade);
             }
         } catch (const std::exception& e) {
-            LOG_ERROR("Error processing WebSocket message: " + std::string(e.what()));
+            std::cerr << "Error processing WebSocket message: " << e.what() << std::endl;
         }
     }
 };
