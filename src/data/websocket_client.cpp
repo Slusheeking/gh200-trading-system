@@ -52,7 +52,6 @@ public:
         
         // Get data source config
         const auto& polygon_config = config.getDataSourceConfig("polygon");
-        const auto& alpaca_config = config.getDataSourceConfig("alpaca");
         
         // Set up data sources
         if (polygon_config.enabled) {
@@ -68,22 +67,6 @@ public:
                 polygon_config.websocket_url,
                 api_key,
                 polygon_config.subscription_type
-            });
-        }
-        
-        if (alpaca_config.enabled) {
-            // Use API key from credentials file if available
-            std::string api_key = alpaca_config.api_key;
-            if (has_credentials && credentials.find("ALPACA_API_KEY") != credentials.end()) {
-                api_key = credentials["ALPACA_API_KEY"];
-                std::cout << "Using Alpaca API key from credentials file" << std::endl;
-            }
-            
-            data_sources_.push_back({
-                "alpaca",
-                alpaca_config.websocket_url,
-                api_key,
-                "trades"  // Default subscription
             });
         }
         
@@ -211,6 +194,7 @@ private:
         std::ifstream file("/etc/trading-system/credentials");
         if (!file.is_open()) {
             std::cerr << "Warning: Could not open credentials file at /etc/trading-system/credentials" << std::endl;
+            trading_system::common::LOG_WARNING("Could not open credentials file at /etc/trading-system/credentials");
             return credentials;
         }
         
@@ -318,35 +302,6 @@ private:
                     {"params", source.subscription}
                 };
                 ws->write(net::buffer(subscribe.dump()));
-            } else if (source.name == "alpaca") {
-                // Alpaca authentication
-                const auto& alpaca_config = config_.getDataSourceConfig("alpaca");
-                
-                // Try to get API secret from credentials file
-                std::string api_secret = alpaca_config.api_secret;
-                std::unordered_map<std::string, std::string> credentials = readCredentialsFile();
-                if (!credentials.empty() && credentials.find("ALPACA_API_SECRET") != credentials.end()) {
-                    api_secret = credentials["ALPACA_API_SECRET"];
-                    std::cout << "Using Alpaca API secret from credentials file" << std::endl;
-                }
-                
-                json auth = {
-                    {"action", "authenticate"},
-                    {"data", {
-                        {"key_id", source.api_key},
-                        {"secret_key", api_secret}
-                    }}
-                };
-                ws->write(net::buffer(auth.dump()));
-                
-                // Subscribe to data
-                json subscribe = {
-                    {"action", "listen"},
-                    {"data", {
-                        {"streams", {"trade_updates"}}
-                    }}
-                };
-                ws->write(net::buffer(subscribe.dump()));
             }
             
             // Start reading
@@ -402,25 +357,12 @@ private:
             if (j.contains("ev") && j["ev"] == "T") {
                 // Polygon trade
                 Trade trade;
-                trade.symbol = j["sym"];
+                trade.symbol = j["sym"].get<std::string>();
                 trade.price = j["p"];
                 trade.size = j["s"];
                 trade.timestamp = j["t"];
-                trade.exchange = j["x"];
+                trade.exchange = j["x"].get<std::string>();
                 trade.conditions = j["c"].dump();
-                
-                // Add to buffer
-                std::lock_guard<std::mutex> lock(data_mutex_);
-                data_buffer_.push_back(trade);
-            } else if (j.contains("data") && j["data"].contains("event") && 
-                      j["data"]["event"] == "fill") {
-                // Alpaca fill event
-                Trade trade;
-                trade.symbol = j["data"]["order"]["symbol"];
-                trade.price = j["data"]["order"]["filled_avg_price"];
-                trade.size = j["data"]["order"]["filled_qty"];
-                trade.timestamp = j["data"]["timestamp"];
-                trade.exchange = "ALPACA";
                 
                 // Add to buffer
                 std::lock_guard<std::mutex> lock(data_mutex_);
@@ -430,6 +372,7 @@ private:
             std::cerr << "Error processing WebSocket message: " << e.what() << std::endl;
         }
     }
+}
 };
 
 // WebSocketClient implementation

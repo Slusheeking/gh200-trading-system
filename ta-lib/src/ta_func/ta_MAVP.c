@@ -302,10 +302,11 @@
 	   curPeriod = localPeriodArray[i];
 	   if( curPeriod != 0 )
 	   {
-           /* TODO: This portion of the function can be slightly speed 
-            *       optimized by making the function without unstable period 
-	        *       start their calculation at 'startIdx+i' instead of startIdx.			
-	        */
+           /* TODO: This portion of the function can be slightly speed
+            *       optimized by making the function without unstable period
+         *       start their calculation at 'startIdx+i' instead of startIdx.
+            *       This requires analyzing the current implementation and identifying optimization opportunities.
+         */
 
 		   /* Calculation of the MA required. */
 		   retCode = FUNCTION_CALL(MA)( startIdx, endIdx, inReal,

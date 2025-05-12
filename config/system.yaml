@@ -1,4 +1,4 @@
-# System Configuration for GH200 Trading System
+# Consolidated System Configuration for GH200 Trading System
 
 # System identification
 system:
@@ -43,44 +43,120 @@ data_sources:
     max_symbols: 1000
     reconnect_interval_ms: 5000
     subscription_type: "T.* (trades)"  # T.* for trades, Q.* for quotes, AM.* for minute bars
-    
-  alpaca:
-    enabled: true
-    api_key: "${ALPACA_API_KEY}"
-    api_secret: "${ALPACA_API_SECRET}"
-    base_url: "https://paper-api.alpaca.markets"
-    data_url: "https://data.alpaca.markets"
-    websocket_url: "wss://stream.data.alpaca.markets/v2/sip"
-    use_websocket: true
-    
-  # Optional secondary data sources
-  alpha_vantage:
-    enabled: false
-    api_key: "${ALPHA_VANTAGE_API_KEY}"
-    base_url: "https://www.alphavantage.co/query"
-    
-  iex_cloud:
-    enabled: false
-    api_key: "${IEX_CLOUD_API_KEY}"
-    base_url: "https://cloud.iexapis.com/v1"
 
-# ML model settings
+# ML model settings (from model_config.yaml)
 ml:
-  # Model paths
-  model_paths:
-    pattern_recognition: "models/pattern_recognition.pt"
-    exit_optimization: "models/exit_optimization.pt"
-    ranking: "models/ranking_model.pkl"
-    sentiment: "models/sentiment_model"
+  # Fast path features
+  fast_path_features:
+    - "price_rel_open"
+    - "price_rel_close"
+    - "price_rel_vwap"
+    - "day_high_pos"
+    - "day_low_pos"
+    - "price_velocity_1m"
+    - "price_velocity_5m"
+    - "volume_rel_avg"
+    - "volume_accel"
+    - "volume_spike"
+    - "rsi_9"
+    - "macd"
+    - "bb_position"
+    - "atr_normalized"
+    - "momentum_1m"
+    - "sma_cross_signal"
+    - "support_resistance_proximity"
+    - "volatility_ratio"
   
-  # Inference settings
+  # Fast Path Model (GBDT/LightGBM)
+  fast_path:
+    model_type: "gbdt"
+    num_trees: 150
+    max_depth: 8
+    learning_rate: 0.05
+    feature_fraction: 0.8
+    bagging_fraction: 0.7
+    num_leaves: 31
+    early_stopping_rounds: 10
+    num_boost_round: 100
+    bagging_freq: 5
+    objective: "binary"
+    metric: "auc"
+    use_tensorrt: true
+    use_fp16: true
+    max_batch_size: 64
+
+  # Accurate Path Model (Axial Attention)
+  accurate_path:
+    model_type: "axial_attention"
+    num_heads: 4
+    head_dim: 64
+    num_layers: 6
+    seq_length: 100
+    dropout: 0.1
+    hidden_dim: 256 # num_heads * head_dim
+    batch_size: 32
+    num_epochs: 50
+    learning_rate: 0.001
+    patience: 10
+    use_tensorrt: true
+    use_fp16: true
+    max_batch_size: 64
+    output_size: 3  # [signal_type, confidence, target_price]
+
+  # Exit Optimization Model (LSTM/GRU)
+  exit_optimization:
+    model_type: "lstm_gru"
+    num_layers: 3
+    hidden_size: 128
+    bidirectional: true
+    attention_enabled: true
+    dropout: 0.1
+    batch_size: 32
+    num_epochs: 50
+    learning_rate: 0.001
+    patience: 10
+    use_tensorrt: true
+    use_fp16: true
+    max_batch_size: 64
+    output_size: 3  # [exit_probability, optimal_exit_price, trailing_stop_adjustment]
+
+  # Training data settings
+  training:
+    train_test_split: 0.8
+    random_seed: 42
+    batch_size: 32
+    shuffle: true
+    num_workers: 4
+    validation_interval: 1
+
+  # Model export settings
+  export:
+    onnx_opset: 12
+    optimize_onnx: true
+    tensorrt_fp16: true
+    tensorrt_cache_path: "models/trt_cache"
+    save_checkpoints: true
+    checkpoint_interval: 5
+
+  # Model Paths
+  model_paths:
+    fast_path: "models/fast_path_gbdt.onnx"
+    accurate_path: "models/accurate_path.onnx"
+    exit_model: "models/exit_lstm.onnx"
+
+  # Inference Settings
   inference:
     batch_size: 64
     use_fp16: true
     max_batch_latency_ms: 5
     inference_threads: 2
-    
-  # Feature extraction
+    fast_path_threshold: 0.65
+    max_candidates: 300
+    accurate_path_threshold: 0.7
+    use_tensorrt: true
+    tensorrt_cache_path: "models/trt_cache"
+
+  # Feature Extraction
   features:
     lookback_periods: 100
     use_cuda_extraction: true
@@ -90,6 +166,11 @@ ml:
       - "bollinger_bands"
       - "vwap"
       - "atr"
+      - "momentum"
+      - "volume_profile"
+      - "price_velocity"
+      - "support_resistance"
+      - "volatility_ratio"
 
 # Performance settings
 performance:
@@ -140,3 +221,165 @@ monitoring:
   # Prometheus integration (if needed)
   prometheus_enabled: false
   prometheus_port: 9091
+
+  # Ngrok tunnels (from ngrok_tunnels.yml)
+  ngrok:
+    version: "2"
+    authtoken: 2vB4mEpkOKCPryJJTqcnQZu17mU_2mHUjAc8Gp4egYp8iDVRJ
+    tunnels:
+      metrics:
+        proto: http
+        addr: 8000
+      dashboard:
+        proto: http
+        addr: 3000
+
+# Trading settings (from trading.yaml)
+trading:
+  # Account settings
+  account:
+    initial_capital: 25000
+    max_positions: 10
+    base_currency: "USD"
+    account_type: "margin"  # cash, margin
+    leverage: 1.0  # 1.0 = no leverage
+    
+    # Position limits
+    max_position_value: 2500  # Maximum value per position ($)
+    min_position_value: 500   # Minimum value per position ($)
+    max_positions_per_sector: 3
+
+  # Market settings
+  market:
+    market_hours_only: true
+    pre_market_trading: false
+    after_hours_trading: false
+    
+    # Market hours (Eastern Time)
+    market_open: "09:30"
+    market_close: "16:00"
+    
+    # Trading universe
+    symbols_file: "config/symbols.txt"
+    min_price: 5.0
+    max_price: 500.0
+    min_volume: 500000
+    min_market_cap: 500000000  # $500M
+    
+    # Sectors/industries to include or exclude
+    excluded_sectors:
+      - "Cryptocurrency"
+    included_sectors: []  # Empty means all sectors except excluded
+
+  # Risk management
+  risk:
+    # Position sizing
+    max_position_size_pct: 5.0  # Maximum position size as % of account
+    position_sizing_method: "kelly"  # fixed, volatility, kelly
+    kelly_fraction: 0.5  # Conservative Kelly criterion (half-Kelly)
+    
+    # Risk limits
+    max_daily_drawdown_pct: 3.0
+    max_total_risk_pct: 15.0  # Maximum total portfolio risk
+    correlation_threshold: 0.7  # Maximum correlation between positions
+    
+    # Stop loss settings
+    use_stop_loss: true
+    default_stop_loss_pct: 2.0
+    max_stop_loss_pct: 5.0
+    
+    # Take profit settings
+    use_take_profit: true
+    default_take_profit_pct: 3.0
+    min_risk_reward_ratio: 1.5  # Minimum risk/reward ratio
+    
+    # Trailing stop settings
+    use_trailing_stop: true
+    trailing_stop_pct: 1.5
+    trailing_stop_activation_pct: 1.0  # Activate after 1% profit
+
+  # Order settings
+  orders:
+    # Order types
+    default_order_type: "market"  # market, limit
+    use_bracket_orders: true
+    use_oco_orders: false
+    
+    # Execution settings
+    time_in_force: "day"  # day, gtc, ioc
+    allow_partial_fills: true
+    
+    # Smart order routing
+    smart_routing: false
+    max_slippage_bps: 20  # Maximum allowed slippage in basis points
+    
+    # Rate limiting
+    max_orders_per_second: 5
+    max_orders_per_minute: 20
+
+  # Trading strategies
+  strategies:
+    # Pattern recognition strategy
+    pattern_recognition:
+      enabled: true
+      confidence_threshold: 0.7
+      patterns:
+        - "bullish_engulfing"
+        - "hammer"
+        - "morning_star"
+        - "cup_and_handle"
+        - "breakout"
+      
+    # Momentum strategy
+    momentum:
+      enabled: true
+      lookback_period: 20
+      threshold: 1.5
+      volume_factor: 2.0
+      
+    # Mean reversion strategy
+    mean_reversion:
+      enabled: true
+      zscore_threshold: 2.0
+      lookback_period: 10
+      
+    # Strategy weights (for ensemble)
+    strategy_weights:
+      pattern_recognition: 0.4
+      momentum: 0.3
+      mean_reversion: 0.3
+
+  # Exit conditions
+  exit:
+    # Time-based exits
+    max_holding_time_minutes: 240  # 4 hours
+    check_exit_interval_seconds: 60
+    
+    # ML-based exit optimization
+    use_ml_exit: true
+    exit_confidence_threshold: 0.6
+    
+    # Market condition exits
+    exit_on_high_volatility: true
+    vix_threshold: 30
+    
+    # End of day
+    close_positions_eod: true
+    eod_exit_time: "15:45"  # 15 minutes before market close
+
+  # Backtesting settings (if needed)
+  backtest:
+    start_date: "2023-01-01"
+    end_date: "2023-12-31"
+    initial_capital: 25000
+    commission_per_share: 0.005
+    slippage_model: "fixed"  # fixed, percentage
+    slippage_bps: 5
+
+  # Broker settings
+  broker:
+    api_key: "${ALPACA_API_KEY}"
+    api_secret: "${ALPACA_API_SECRET}"
+    base_url: "https://paper-api.alpaca.markets"
+    order_type: "market"  # Default order type
+    max_slippage_bps: 20   # Maximum allowed slippage in basis points

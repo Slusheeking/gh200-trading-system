@@ -39,7 +39,8 @@ public:
     ~ZeroAllocLogger();
     
     // Log a message with no allocations
-    void log(LogLevel level, const std::string& message);
+    template <typename... Args>
+    void log(LogLevel level, const char* format, Args... args);
     
     // Set log level
     void setLevel(const std::string& level_str);
@@ -84,11 +85,11 @@ private:
 extern ZeroAllocLogger g_logger;
 
 // Convenience macros
-#define LOG_DEBUG(msg) g_logger.log(LogLevel::DEBUG, msg)
-#define LOG_INFO(msg) g_logger.log(LogLevel::INFO, msg)
-#define LOG_WARNING(msg) g_logger.log(LogLevel::WARNING, msg)
-#define LOG_ERROR(msg) g_logger.log(LogLevel::ERROR, msg)
-#define LOG_CRITICAL(msg) g_logger.log(LogLevel::CRITICAL, msg)
+#define LOG_DEBUG(format, ...) g_logger.log(LogLevel::DEBUG, format, ##__VA_ARGS__)
+#define LOG_INFO(format, ...) g_logger.log(LogLevel::INFO, format, ##__VA_ARGS__)
+#define LOG_WARNING(format, ...) g_logger.log(LogLevel::WARNING, format, ##__VA_ARGS__)
+#define LOG_ERROR(format, ...) g_logger.log(LogLevel::ERROR, format, ##__VA_ARGS__)
+#define LOG_CRITICAL(format, ...) g_logger.log(LogLevel::CRITICAL, format, ##__VA_ARGS__)
 
 } // namespace common
 } // namespace trading_system

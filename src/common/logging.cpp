@@ -49,7 +49,8 @@ ZeroAllocLogger::~ZeroAllocLogger() {
     }
 }
 
-void ZeroAllocLogger::log(LogLevel level, const std::string& message) {
+template <typename... Args>
+void ZeroAllocLogger::log(LogLevel level, const char* format, Args... args) {
     // Skip if level is below current level
     if (level < level_) {
         return;
@@ -64,9 +65,8 @@ void ZeroAllocLogger::log(LogLevel level, const std::string& message) {
     entry.level = level;
     entry.thread_id = static_cast<uint32_t>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
     
-    // Copy message (truncate if too long)
-    strncpy(entry.message, message.c_str(), sizeof(entry.message) - 1);
-    entry.message[sizeof(entry.message) - 1] = '\0';
+    // Format message (truncate if too long)
+    snprintf(entry.message, sizeof(entry.message), format, args...);
 }
 
 void ZeroAllocLogger::setLevel(const std::string& level_str) {

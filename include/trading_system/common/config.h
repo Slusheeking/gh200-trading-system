@@ -51,11 +51,25 @@ struct DataSourceConfig {
 
 // ML configuration
 struct MLConfig {
+    // Path to model configuration file
+    std::string config_file;
+    
     struct ModelPaths {
+        // Legacy models
         std::string pattern_recognition;
         std::string exit_optimization;
         std::string ranking;
         std::string sentiment;
+        
+        // Hybrid approach models
+        std::string fast_path;       // Market scanner (GBDT/LightGBM)
+        std::string accurate_path;   // Signal generator (Axial Attention)
+        std::string exit_model;      // Exit optimization (LSTM/GRU)
+        
+        // Engine files (optimized)
+        std::string fast_path_engine;
+        std::string accurate_path_engine;
+        std::string exit_model_engine;
     } model_paths;
     
     struct Inference {
@@ -63,12 +77,40 @@ struct MLConfig {
         bool use_fp16;
         int max_batch_latency_ms;
         int inference_threads;
+        
+        // Hybrid approach settings
+        float fast_path_threshold;
+        int max_candidates;
+        float accurate_path_threshold;
+        bool use_tensorrt;
+        std::string tensorrt_cache_path;
+        
+        // Model-specific settings
+        struct GBDT {
+            int num_threads;
+            std::string prediction_type;
+        } gbdt;
+        
+        struct AxialAttention {
+            int num_heads;
+            int head_dim;
+            int num_layers;
+            int seq_length;
+        } axial_attention;
+        
+        struct LstmGru {
+            int num_layers;
+            int hidden_size;
+            bool bidirectional;
+            bool attention_enabled;
+        } lstm_gru;
     } inference;
     
     struct Features {
         int lookback_periods;
         bool use_cuda_extraction;
         std::vector<std::string> indicators;
+        std::vector<std::string> fast_path_features;
     } features;
 };
 
@@ -132,6 +174,7 @@ struct TradingConfig {
         std::string default_order_type;
         bool use_bracket_orders;
         std::string time_in_force;
+        std::string broker_type; // Add broker_type here
     } orders;
     
     struct Strategies {
@@ -152,7 +195,7 @@ struct TradingConfig {
 
 class Config {
 public:
-    Config(const std::string& system_config_path, const std::string& trading_config_path);
+    Config(const std::string& config_path);
     ~Config() = default;
     
     const HardwareConfig& getHardwareConfig() const { return hardware_config_; }
@@ -162,9 +205,11 @@ public:
     const LoggingConfig& getLoggingConfig() const { return logging_config_; }
     const TradingConfig& getTradingConfig() const { return trading_config_; }
     
+    // Load model-specific configuration from ml_config_.config_file
+    void loadModelConfig();
+    
 private:
-    void loadSystemConfig(const std::string& path);
-    void loadTradingConfig(const std::string& path);
+    void loadConfig(const std::string& path);
     std::string expandEnvVars(const std::string& value);
     
     HardwareConfig hardware_config_;

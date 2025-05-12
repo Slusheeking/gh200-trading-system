@@ -15,14 +15,11 @@
 namespace trading_system {
 namespace common {
 
-Config::Config(const std::string& system_config_path, const std::string& trading_config_path) {
-    // Load system configuration
-    loadSystemConfig(system_config_path);
+Config::Config(const std::string& config_path) {
+    // Load configuration
+    loadConfig(config_path);
     
-    // Load trading configuration
-    loadTradingConfig(trading_config_path);
-    
-    std::cout << "Configuration loaded from " << system_config_path << " and " << trading_config_path << std::endl;
+    std::cout << "Configuration loaded from " << config_path << std::endl;
 }
 
 const DataSourceConfig& Config::getDataSourceConfig(const std::string& source) const {
@@ -35,7 +32,7 @@ const DataSourceConfig& Config::getDataSourceConfig(const std::string& source) c
     return it->second;
 }
 
-void Config::loadSystemConfig(const std::string& path) {
+void Config::loadConfig(const std::string& path) {
     try {
         // Load YAML file
         YAML::Node config = YAML::LoadFile(path);
@@ -65,6 +62,19 @@ void Config::loadSystemConfig(const std::string& path) {
             hardware_config_.receive_buffer_size = hw["receive_buffer_size"].as<int>(16777216);
             hardware_config_.send_buffer_size = hw["send_buffer_size"].as<int>(8388608);
             hardware_config_.tcp_nodelay = hw["tcp_nodelay"].as<bool>(true);
+            
+            // Validate hardware config
+            if (hardware_config_.device.empty()) {
+                throw std::runtime_error("Hardware device must be specified");
+            }
+            if (hardware_config_.memory_limit_mb <= 0) {
+                throw std::runtime_error("Hardware memory limit must be positive");
+            }
+            if (hardware_config_.num_cuda_streams <= 0) {
+                throw std::runtime_error("Number of CUDA streams must be positive");
+            }
+        } else {
+            throw std::runtime_error("Hardware configuration section missing");
         }
         
         // Parse data sources
@@ -83,6 +93,9 @@ void Config::loadSystemConfig(const std::string& path) {
                 polygon_config.subscription_type = polygon["subscription_type"].as<std::string>("T.*");
                 
                 data_sources_["polygon"] = polygon_config;
+                if (polygon_config.enabled && polygon_config.api_key.empty()) {
+                    throw std::runtime_error("Polygon API key must be specified if enabled");
+                }
             }
             
             // Parse Alpaca configuration
@@ -96,7 +109,12 @@ void Config::loadSystemConfig(const std::string& path) {
                 alpaca_config.websocket_url = alpaca["websocket_url"].as<std::string>("wss://stream.data.alpaca.markets/v2/sip");
                 
                 data_sources_["alpaca"] = alpaca_config;
+                if (alpaca_config.enabled && (alpaca_config.api_key.empty() || alpaca_config.api_secret.empty())) {
+                    throw std::runtime_error("Alpaca API key and secret must be specified if enabled");
+                }
             }
+        } else {
+            LOG_WARNING("No data sources configured.");
         }
         
         // Parse ML configuration
@@ -111,6 +129,12 @@ void Config::loadSystemConfig(const std::string& path) {
                 ml_config_.model_paths.ranking = paths["ranking"].as<std::string>("");
                 ml_config_.model_paths.sentiment = paths["sentiment"].as<std::string>("");
             }
+            
+            // Validate ml config
+            if (ml["config_file"].IsNull()) {
+                throw std::runtime_error("ML config file must be specified");
+            }
+            ml_config_.config_file = ml["config_file"].as<std::string>("");
             
             // Parse inference settings
             if (ml["inference"]) {
@@ -173,26 +197,44 @@ void Config::loadSystemConfig(const std::string& path) {
     } catch (const std::exception& e) {
         throw std::runtime_error("Error loading system config: " + std::string(e.what()));
     }
-}
-
-void Config::loadTradingConfig(const std::string& path) {
+    
     try {
-        // Load YAML file
+        // Load YAML file again to parse trading section
         YAML::Node config = YAML::LoadFile(path);
         
+        // Parse trading section
+        if (!config["trading"]) {
+            throw std::runtime_error("Trading section not found in config file");
+        }
+        
+        YAML::Node trading = config["trading"];
+        
         // Parse account settings
-        if (config["account"]) {
-            auto account = config["account"];
+        if (trading["account"]) {
+            auto account = trading["account"];
             trading_config_.account.initial_capital = account["initial_capital"].as<double>(25000.0);
             trading_config_.account.max_positions = account["max_positions"].as<int>(10);
             trading_config_.account.base_currency = account["base_currency"].as<std::string>("USD");
             trading_config_.account.account_type = account["account_type"].as<std::string>("margin");
             trading_config_.account.leverage = account["leverage"].as<double>(1.0);
+        } else {
+            throw std::runtime_error("Account configuration missing");
+        }
+        
+        // Validate trading config
+        if (trading_config_.account.initial_capital <= 0) {
+            throw std::runtime_error("Initial capital must be positive");
+        }
+        if (trading_config_.account.max_positions <= 0) {
+            throw std::runtime_error("Max positions must be positive");
+        }
+        if (trading_config_.account.base_currency.empty()) {
+            throw std::runtime_error("Base currency must be specified");
         }
         
         // Parse risk settings
-        if (config["risk"]) {
-            auto risk = config["risk"];
+        if (trading["risk"]) {
+            auto risk = trading["risk"];
             trading_config_.risk.max_position_size_pct = risk["max_position_size_pct"].as<double>(5.0);
             trading_config_.risk.position_sizing_method = risk["position_sizing_method"].as<std::string>("kelly");
             trading_config_.risk.kelly_fraction = risk["kelly_fraction"].as<double>(0.5);
@@ -209,17 +251,17 @@ void Config::loadTradingConfig(const std::string& path) {
         }
         
         // Parse order settings
-        if (config["orders"]) {
-            auto orders = config["orders"];
+        if (trading["orders"]) {
+            auto orders = trading["orders"];
             trading_config_.orders.default_order_type = orders["default_order_type"].as<std::string>("market");
             trading_config_.orders.use_bracket_orders = orders["use_bracket_orders"].as<bool>(true);
             trading_config_.orders.time_in_force = orders["time_in_force"].as<std::string>("day");
-            // Note: broker is handled elsewhere
+            trading_config_.orders.broker_type = orders["broker_type"].as<std::string>("paper"); // Load broker_type
         }
         
         // Parse strategy settings
-        if (config["strategies"]) {
-            auto strategies = config["strategies"];
+        if (trading["strategies"]) {
+            auto strategies = trading["strategies"];
             
             // Parse pattern recognition strategy
             if (strategies["pattern_recognition"]) {
@@ -237,8 +279,8 @@ void Config::loadTradingConfig(const std::string& path) {
         }
         
         // Parse exit settings
-        if (config["exit"]) {
-            auto exit = config["exit"];
+        if (trading["exit"]) {
+            auto exit = trading["exit"];
             trading_config_.exit.max_holding_time_minutes = exit["max_holding_time_minutes"].as<int>(240);
             trading_config_.exit.check_exit_interval_seconds = exit["check_exit_interval_seconds"].as<int>(60);
             trading_config_.exit.use_ml_exit = exit["use_ml_exit"].as<bool>(true);
@@ -247,7 +289,7 @@ void Config::loadTradingConfig(const std::string& path) {
             trading_config_.exit.eod_exit_time = exit["eod_exit_time"].as<std::string>("15:45");
         }
     } catch (const std::exception& e) {
-        throw std::runtime_error("Error loading trading config: " + std::string(e.what()));
+        throw std::runtime_error("Error loading trading section from config: " + std::string(e.what()));
     }
 }
 

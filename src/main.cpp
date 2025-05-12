@@ -21,6 +21,7 @@
 
 namespace po = boost::program_options;
 using namespace trading_system;
+using namespace std;
 
 // Global signal handler
 std::atomic<bool> running{true};
@@ -37,7 +38,6 @@ int main(int argc, char** argv) {
         desc.add_options()
             ("help", "produce help message")
             ("config", po::value<std::string>()->default_value("config/system.yaml"), "system configuration file")
-            ("trading-config", po::value<std::string>()->default_value("config/trading.yaml"), "trading configuration file")
             ("log-level", po::value<std::string>()->default_value("info"), "log level (debug, info, warning, error)")
         ;
 
@@ -46,20 +46,20 @@ int main(int argc, char** argv) {
         po::notify(vm);
 
         if (vm.count("help")) {
-            std::cout << desc << "\n";
+            cout << desc << "\n";
             return 0;
         }
 
         // Register signal handler
-        std::signal(SIGINT, signalHandler);
-        std::signal(SIGTERM, signalHandler);
+        signal(SIGINT, signalHandler);
+        signal(SIGTERM, signalHandler);
         
         // Initialize logging
-        std::cout << "Starting GH200 Trading System" << std::endl;
+        cout << "Starting GH200 Trading System" << endl;
         
         // Load configuration
-        common::Config config(vm["config"].as<std::string>(), vm["trading-config"].as<std::string>());
-        std::cout << "Configuration loaded" << std::endl;
+        common::Config config(vm["config"].as<std::string>());
+        cout << "Configuration loaded" << endl;
         
         // Pin main thread to core 2
         common::pinThreadToCore(config.getHardwareConfig().cpu_cores.main_thread);
@@ -77,11 +77,11 @@ int main(int argc, char** argv) {
         riskManager.setThreadAffinity(config.getHardwareConfig().cpu_cores.risk);
         executionEngine.setThreadAffinity(config.getHardwareConfig().cpu_cores.execution);
         
-        std::cout << "All components initialized" << std::endl;
+        cout << "All components initialized" << endl;
         
         // Connect WebSocket
         wsClient.connect();
-        std::cout << "WebSocket connected" << std::endl;
+        cout << "WebSocket connected" << endl;
         
         // Pre-allocate memory for market data
         auto marketDataPtr = data::MarketData::createPreallocated(config.getPerformanceConfig().websocket_parser_batch_size);
@@ -125,8 +125,8 @@ int main(int argc, char** argv) {
             
             if (stats_elapsed >= config.getLoggingConfig().latency_log_interval_s) {
                 double avg_latency_us = (total_latency_ns / static_cast<double>(cycle_count)) / 1000.0;
-                std::cout << "Performance: " << cycle_count
-                          << " cycles, avg latency: " << avg_latency_us << " µs" << std::endl;
+                cout << "Performance: " << cycle_count
+                          << " cycles, avg latency: " << avg_latency_us << " µs" << endl;
                 
                 // Reset counters
                 cycle_count = 0;
@@ -136,19 +136,19 @@ int main(int argc, char** argv) {
             
             // Check if latency exceeds threshold
             if (cycle_latency / 1000 > config.getPerformanceConfig().max_e2e_latency_us) {
-                std::cerr << "High latency detected: "
-                          << (cycle_latency / 1000) << " µs" << std::endl;
+                cerr << "High latency detected: "
+                          << (cycle_latency / 1000) << " µs" << endl;
             }
         }
         
         // Cleanup
         wsClient.disconnect();
-        std::cout << "WebSocket disconnected" << std::endl;
+        cout << "WebSocket disconnected" << endl;
         
-        std::cout << "Trading system shutdown complete" << std::endl;
+        cout << "Trading system shutdown complete" << endl;
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "Fatal error: " << e.what() << std::endl;
+        cerr << "Fatal error: " << e.what() << endl;
         return 1;
     }
 }

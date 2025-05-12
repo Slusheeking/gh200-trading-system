@@ -40,6 +40,8 @@ cudf-cu12==23.04.00
 cuml-cu12==23.04.00
 numba==0.57.0
 cupy-cuda12x==12.0.0
+tensorrt==8.6.1
+pycuda==2022.2.2
 
 # Web/API
 flask==2.3.2

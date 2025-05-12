@@ -10,7 +10,6 @@
 #include "trading_system/common/config.h"
 #include "trading_system/common/logging.h"
 #include "trading_system/execution/execution_engine.h"
-#include "paper_trading_broker_client.h"
 
 namespace trading_system {
 namespace execution {
@@ -191,11 +190,7 @@ void ExecutionEngine::handleOrderResponse(const OrderResponse& response) {
 
 std::unique_ptr<BrokerClient> ExecutionEngine::createBrokerClient(const common::Config& config) {
     // Create broker client based on configuration
-    std::string broker_type = "paper"; // Default to paper trading
-    
-    // In a real implementation, we would get the broker type from config
-    // For now, just create a paper trading broker client
-    return std::make_unique<PaperTradingBrokerClient>(config);
+    return createBrokerClient(config);
 }
 
 std::string ExecutionEngine::orderStatusToString(OrderStatus status) {

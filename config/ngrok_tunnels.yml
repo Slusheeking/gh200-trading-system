@@ -1,9 +1,0 @@
-version: "2"
-authtoken: 2vB4mEpkOKCPryJJTqcnQZu17mU_2mHUjAc8Gp4egYp8iDVRJ
-tunnels:
-  metrics:
-    proto: http
-    addr: 8000
-  dashboard:
-    proto: http
-    addr: 3000

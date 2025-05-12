@@ -8,11 +8,15 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/ubuntu/inavvi2/src/monitoring/metrics_publisher.cpp" "CMakeFiles/monitoring.dir/src/monitoring/metrics_publisher.cpp.o" "gcc" "CMakeFiles/monitoring.dir/src/monitoring/metrics_publisher.cpp.o.d"
+  "/home/ubuntu/gh200-trading-system/src/monitoring/metrics_publisher.cpp" "CMakeFiles/monitoring.dir/src/monitoring/metrics_publisher.cpp.o" "gcc" "CMakeFiles/monitoring.dir/src/monitoring/metrics_publisher.cpp.o.d"
   )
 
-# Targets to which this target links.
-set(CMAKE_TARGET_LINKED_INFO_FILES
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
+  )
+
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
   )
 
 # Fortran module output directory.

@@ -1,5 +1,5 @@
 CMakeFiles/trading_core.dir/src/data/websocket_client.cpp.o: \
- /home/ubuntu/inavvi2/src/data/websocket_client.cpp \
+ /home/ubuntu/gh200-trading-system/src/data/websocket_client.cpp \
  /usr/include/stdc-predef.h /usr/include/c++/11/string \
  /usr/include/aarch64-linux-gnu/c++/11/bits/c++config.h \
  /usr/include/aarch64-linux-gnu/c++/11/bits/os_defines.h \
@@ -1439,7 +1439,7 @@ CMakeFiles/trading_core.dir/src/data/websocket_client.cpp.o: \
  /usr/include/nlohmann/ordered_map.hpp \
  /usr/include/nlohmann/detail/macro_unscope.hpp \
  /usr/include/nlohmann/thirdparty/hedley/hedley_undef.hpp \
- /home/ubuntu/inavvi2/include/trading_system/common/config.h \
+ /home/ubuntu/gh200-trading-system/include/trading_system/common/config.h \
  /usr/include/yaml-cpp/yaml.h /usr/include/yaml-cpp/parser.h \
  /usr/include/yaml-cpp/dll.h /usr/include/yaml-cpp/emitter.h \
  /usr/include/yaml-cpp/binary.h /usr/include/yaml-cpp/emitterdef.h \
@@ -1466,13 +1466,13 @@ CMakeFiles/trading_core.dir/src/data/websocket_client.cpp.o: \
  /usr/include/yaml-cpp/node/convert.h \
  /usr/include/yaml-cpp/node/detail/impl.h \
  /usr/include/yaml-cpp/node/parse.h /usr/include/yaml-cpp/node/emit.h \
- /home/ubuntu/inavvi2/include/trading_system/common/logging.h \
+ /home/ubuntu/gh200-trading-system/include/trading_system/common/logging.h \
  /usr/include/c++/11/thread /usr/include/c++/11/stop_token \
  /usr/include/c++/11/bits/std_thread.h /usr/include/c++/11/semaphore \
  /usr/include/c++/11/bits/semaphore_base.h \
  /usr/include/c++/11/bits/atomic_timed_wait.h \
  /usr/include/c++/11/bits/this_thread_sleep.h /usr/include/semaphore.h \
  /usr/include/aarch64-linux-gnu/bits/semaphore.h \
- /home/ubuntu/inavvi2/include/trading_system/data/market_data.h \
- /home/ubuntu/inavvi2/include/trading_system/data/websocket_client.h \
+ /home/ubuntu/gh200-trading-system/include/trading_system/data/market_data.h \
+ /home/ubuntu/gh200-trading-system/include/trading_system/data/websocket_client.h \
  /usr/include/c++/11/condition_variable

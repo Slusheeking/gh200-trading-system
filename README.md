@@ -1,73 +1,101 @@
-# GH200 Trading System
+# GH200 Trading System - Hybrid HFT Architecture
 
-A high-performance, low-latency trading system designed for the NVIDIA GH200 Grace Hopper Superchip, optimized for AI-driven algorithmic trading.
+This project implements a high-performance trading system optimized for the NVIDIA GH200 Grace Hopper Superchip. It features a hybrid high-frequency trading (HFT) model architecture designed to efficiently process market data and generate trading signals with ultra-low latency.
 
-## Overview
+## Architecture Overview
 
-This trading system leverages the computational power of NVIDIA's GH200 Grace Hopper Superchip to perform real-time market data processing, feature extraction, ML inference, risk management, and trade execution with ultra-low latency.
+The hybrid HFT model architecture consists of three main components:
+
+1. **Fast Path Model**: A lightweight gradient boosting decision tree model that quickly scans the entire market (10,000+ stocks) to identify potential trading opportunities.
+2. **Accurate Path Model**: A more sophisticated neural network with axial attention for detailed analysis on selected candidates.
+3. **Exit Optimization Model**: An LSTM-based model for optimizing exit points for active positions.
+
+![Hybrid Architecture](docs/images/hybrid_architecture.png)
 
 ## Key Features
 
-- **High-Performance Architecture**: Optimized for the GH200 Grace Hopper Superchip
-- **Real-Time Market Data Processing**: Efficient WebSocket client for market data ingestion
-- **CUDA-Accelerated Feature Extraction**: Parallel processing of market data
-- **ML-Driven Trading Signals**: Real-time inference using PyTorch models
-- **Risk Management**: Position tracking and risk controls
-- **Low-Latency Execution**: Optimized order execution engine
-- **Real-Time Monitoring**: Dashboard for system metrics and performance
+- **Multi-stage Filtering**: Efficiently process thousands of stocks in real-time
+- **TensorRT Optimization**: Maximum inference performance on NVIDIA hardware
+- **Low Latency**: Sub-millisecond end-to-end processing
+- **Python Integration**: Seamless C++ and Python interoperability
+- **Configurable Risk Management**: Advanced position sizing and stop-loss mechanisms
+- **Real-time Monitoring**: Live performance metrics and system health
 
-## System Components
+## Documentation
 
-- **Data Ingestion**: WebSocket client for market data feeds
-- **Feature Extraction**: CUDA-accelerated feature calculation
-- **ML Inference**: PyTorch models for signal generation
-- **Risk Management**: Position tracking and risk controls
-- **Execution Engine**: Order management and execution
-- **Monitoring Dashboard**: Real-time system metrics and performance visualization
+- [Hybrid HFT Architecture Overview](docs/HYBRID_HFT_ARCHITECTURE.md) - High-level design and components
+- [Implementation Guide](docs/HYBRID_HFT_IMPLEMENTATION.md) - Detailed implementation and usage instructions
+- [System Hardware Requirements](docs/SYSTEM_HARDWARE.md) - Hardware specifications and optimization
 
-## Monitoring Dashboard
-
-The system includes a real-time monitoring dashboard that displays:
-
-- System metrics (CPU, memory, GPU usage)
-- Latency metrics for each component
-- Trading metrics (positions, signals, trades, P&L)
-
-Access the dashboard at http://localhost:3000 when the system is running.
-
-## Getting Started
+## Installation
 
 ### Prerequisites
 
-- NVIDIA GH200 Grace Hopper Superchip or compatible hardware
-- CUDA Toolkit 12.0+
-- CMake 3.20+
-- Node.js 18+ (for monitoring dashboard)
-- MongoDB
-- Redis
+- NVIDIA GH200 (or compatible GPU with CUDA support)
+- CUDA 12.0 or higher
+- TensorRT 8.6 or higher
+- Ubuntu 22.04 or higher
+
+### Dependencies Installation
+
+```bash
+./install_dependencies.sh
+```
 
 ### Building the System
 
 ```bash
-# Clone the repository
-git clone https://github.com/slusheeking/gh200-trading-system.git
-cd gh200-trading-system
-
-# Build the system
-cmake .
-make
+mkdir -p build && cd build
+cmake ..
+make -j$(nproc)
 ```
 
-### Running the System
+## Running the System
 
 ```bash
-# Start the system
-./start.sh
-
-# Stop the system
-./stop.sh
+./run_hybrid_system.sh
 ```
+
+Additional command-line options:
+
+```bash
+./run_hybrid_system.sh --config config/system.yaml --log-level info --mode live --data-source polygon
+```
+
+## Model Training
+
+The system requires three different models:
+
+```bash
+# Train fast path model
+python3 python/model_trainer.py --model-type fast_path --data-path data/training --output-dir models
+
+# Train accurate path model
+python3 python/model_trainer.py --model-type accurate_path --data-path data/training --output-dir models
+
+# Train exit optimization model
+python3 python/model_trainer.py --model-type exit_optimization --data-path data/training --output-dir models
+```
+
+## Directory Structure
+
+- **config/**: Configuration files
+- **data/**: Market data and training datasets
+- **docs/**: Documentation files
+- **include/**: C++ header files
+- **models/**: Model files (ONNX, TensorRT)
+- **monitoring/**: Real-time monitoring system
+- **python/**: Python modules for model training and optimization
+- **scripts/**: Utility scripts
+- **src/**: C++ source code
+- **tools/**: Development and profiling tools
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the terms of the license included in the repository.
+
+## Acknowledgments
+
+- NVIDIA for GH200 architecture
+- TensorRT team for acceleration libraries
+- TA-Lib for technical analysis functions

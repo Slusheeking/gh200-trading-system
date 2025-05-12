@@ -309,7 +309,7 @@ ErrorNumber checkForNAN( const TA_Real *buffer,
     */
    for( i=0; i < nbElement; i++,idx++ )
    {
-      /* TODO Add back some nan/inf checking
+      // Add back some nan/inf checking
       if( trio_isnan(theBuffer[idx]) )
       {
          printf( "Fail: Not a number find within the data (%d,%f)\n", i, theBuffer[idx] );
@@ -320,7 +320,7 @@ ErrorNumber checkForNAN( const TA_Real *buffer,
       {
          printf( "Fail: Not a number find within the data (%d,%f)\n", i, theBuffer[idx] );
          return TA_TEST_TFRR_OVERLAP_OR_NAN_2;
-      }*/
+      }
 
       if( theBuffer[idx] == RESV_PATTERN_PREFIX )
       {
@@ -378,13 +378,11 @@ ErrorNumber checkSameContent( TA_Real *buffer1,
 
    for( i=0; i < TA_BUF_SIZE; i++ )
    {
-        /* TODO Add back nan/inf checking
-          (!trio_isnan(theBuffer1[i])) &&
-          (!trio_isinf(theBuffer1[i])) &&
-         */
-
       if( (theBuffer1[i] != RESV_PATTERN_SUFFIX) &&
-          (theBuffer1[i] != RESV_PATTERN_PREFIX) )
+          (theBuffer1[i] != RESV_PATTERN_PREFIX) &&
+          // Add back nan/inf checking
+          (!trio_isnan(theBuffer1[i])) &&
+          (!trio_isinf(theBuffer1[i])) )
       {
          
          if(!TA_REAL_EQ( theBuffer1[i], theBuffer2[i], 0.000001))
@@ -403,7 +401,7 @@ ErrorNumber checkDataSame( const TA_Real *data,
                            const TA_Real *originalInput,
                            unsigned int nbElement )
 {
-   unsigned int i;
+   unsigned int i; // Declare i at the beginning of the function
    ErrorNumber errNb;
 
    errNb = checkForNAN( data, nbElement );
@@ -437,6 +435,7 @@ ErrorNumber checkExpectedValue( const TA_Real *data,
                                 unsigned int outNbElement, unsigned int expectedNbElement,
                                 TA_Real oneOfTheExpectedOutReal,
                                 unsigned int oneOfTheExpectedOutRealIndex )
+unsigned int i; // Declare i at the beginning of the function
 {    
    if( retCode != expectedRetCode )
    {
@@ -461,7 +460,7 @@ ErrorNumber checkExpectedValue( const TA_Real *data,
 
 
    /* Make sure the range of output does not contains NAN. */
-   /* TODO Add back nan/inf checking
+   // Add back nan/inf checking
    for( i=0; i < outNbElement; i++ )
    {
       if( trio_isnan(data[i]) )
@@ -469,7 +468,7 @@ ErrorNumber checkExpectedValue( const TA_Real *data,
          printf( "Fail: Not a number find within the data (%d,%f)\n", i, data[i] );
          return TA_TEST_TFRR_OVERLAP_OR_NAN_3;
       }
-   }*/
+   }
 
    /* Verify that the expected output is there. */
 

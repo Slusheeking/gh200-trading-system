@@ -305,12 +305,12 @@ start_monitoring() {
   else
     if command_exists ngrok; then
       log "Starting Ngrok tunnels..."
-      if [ -f "config/ngrok_tunnels.yml" ]; then
-        nohup ngrok start --all --config=config/ngrok_tunnels.yml > ${LOG_DIR}/ngrok.log 2>&1 &
+      if [ -f "config/system.yaml" ]; then
+        nohup ngrok start --all --config=config/system.yaml > ${LOG_DIR}/ngrok.log 2>&1 &
         local ngrok_pid=$!
         log "Ngrok tunnels started (PID: ${ngrok_pid})"
       else
-        log "ERROR: Ngrok configuration file not found at config/ngrok_tunnels.yml"
+        log "ERROR: System configuration file not found at config/system.yaml"
         return 1
       fi
     else
@@ -345,14 +345,9 @@ start_trading_system() {
       return 1
     fi
     
-    if [ ! -f "./config/trading.yaml" ]; then
-      log "ERROR: Trading configuration file not found at ./config/trading.yaml"
-      return 1
-    fi
-    
     # Start the trading system with configuration
     log "Starting trading system binary..."
-    nohup ./bin/trading_system --config ./config/system.yaml --trading ./config/trading.yaml > ${LOG_DIR}/trading_system.log 2>&1 &
+    nohup ./bin/trading_system --config ./config/system.yaml > ${LOG_DIR}/trading_system.log 2>&1 &
     local trading_pid=$!
     log "Trading system started (PID: ${trading_pid})"
     return 0

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <string_view>
 #include <unordered_map>
 #include <cstdint>
 
@@ -15,23 +16,23 @@ namespace data {
 
 // Trade data
 struct Trade {
-    std::string symbol;
+    std::string_view symbol;
     double price;
     int64_t size;
     uint64_t timestamp;
-    std::string exchange;
-    std::string conditions;
+    std::string_view exchange;
+    std::string_view conditions;
 };
 
 // Quote data
 struct Quote {
-    std::string symbol;
+    std::string_view symbol;
     double bid_price;
     double ask_price;
     int64_t bid_size;
     int64_t ask_size;
     uint64_t timestamp;
-    std::string exchange;
+    std::string_view exchange;
 };
 
 // Bar data
@@ -88,6 +89,42 @@ struct ParsedMarketData {
         int64_t volume;
         double vwap;
         uint64_t timestamp;
+        
+        // Price data
+        double open_price;
+        double high_price;
+        double low_price;
+        double prev_close;
+        
+        // Volume data
+        double avg_volume;
+        double volume_acceleration;
+        double volume_spike;
+        double volume_profile_imbalance;
+        
+        // Order book metrics
+        double bid_ask_spread;
+        double bid_ask_imbalance;
+        double bid_ask_spread_change;
+        int64_t trade_count;
+        double avg_trade_size;
+        double large_trade_ratio;
+        
+        // Price dynamics
+        double price_change_1m;
+        double price_change_5m;
+        double momentum_1m;
+        double price_trend_strength;
+        double volume_trend_strength;
+        double volatility_ratio;
+        double volatility_change;
+        
+        // Market context
+        double market_regime;
+        double sector_performance;
+        double relative_strength;
+        double support_resistance_proximity;
+        double sma_cross_signal;
         
         // Technical indicators (calculated by CUDA)
         double rsi_14;

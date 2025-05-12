@@ -41,6 +41,20 @@ include_directories(${TBB_INCLUDE_DIR})
 find_path(YAML_CPP_INCLUDE_DIR yaml-cpp/yaml.h REQUIRED)
 find_library(YAML_CPP_LIBRARY yaml-cpp REQUIRED)
 include_directories(${YAML_CPP_INCLUDE_DIR})
+# Find Python
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+include_directories(${Python3_INCLUDE_DIRS})
+# Find pybind11
+find_package(pybind11 QUIET)
+if(NOT pybind11_FOUND)
+  include(FetchContent)
+  FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG        v2.11.1
+  )
+  FetchContent_MakeAvailable(pybind11)
+endif()
 
 find_package(Threads REQUIRED)
 
@@ -48,25 +62,31 @@ find_package(Threads REQUIRED)
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include/third_party
+    ${CMAKE_CURRENT_SOURCE_DIR}/_deps/pybind11-src/third_party/simdjson
     ${CUDA_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
 
 # Add library
 add_library(trading_core SHARED
-    src/cuda/parser.cu
-    src/cuda/features.cu
     src/data/websocket_client.cpp
     src/data/market_data.cpp
+    src/data/rest_client.cpp
+    src/data/polygon_client.cpp
     src/execution/order.cpp
     src/execution/execution_engine.cpp
     src/execution/broker_client.cpp
-    src/execution/paper_trading_broker_client.cpp
     src/common/config.cpp
     src/common/logging.cpp
     src/risk/risk_manager.cpp
     src/ml/inference.cpp
     src/ml/model.cpp
+    src/ml/gbdt_model.cpp
+    src/ml/axial_attention_model.cpp # Added Axial Attention model
+    src/ml/lstm_gru_model.cpp      # Added LSTM/GRU model
+    src/ml/exit_optimization.cpp
+    src/ml/model_trainer.cpp       # Added Model Trainer
+    src/ml/market_snapshot_processor.cpp # Added Market Snapshot Processor
 )
 
 # Link libraries
@@ -81,16 +101,9 @@ target_link_libraries(trading_core
     ${YAML_CPP_LIBRARY}
     Threads::Threads
     ${CURL_LIBRARIES}
-)
-
-# Add ML inference library
-add_library(ml_inference SHARED
-    src/cuda/inference.cu
-    src/cuda/model_loader.cu
-)
-
-target_link_libraries(ml_inference
-    ${CUDA_LIBRARIES}
+    ta_lib
+    lightgbm
+    nvinfer
 )
 
 # Add monitoring library
@@ -108,11 +121,24 @@ target_link_libraries(monitoring
 add_executable(trading_system src/main.cpp)
 target_link_libraries(trading_system
     trading_core
-    ml_inference
+    monitoring
+)
+
+# Examples
+add_executable(polygon_snapshot_example examples/polygon_snapshot_example.cpp)
+target_link_libraries(polygon_snapshot_example
+    trading_core
+    monitoring
+)
+
+# Model trainer executable
+add_executable(model_trainer src/ml/model_trainer_main.cpp)
+target_link_libraries(model_trainer
+    trading_core
     monitoring
 )
 
 # Install targets
 install(TARGETS trading_system DESTINATION bin)
-install(TARGETS trading_core ml_inference DESTINATION lib)
+install(TARGETS trading_core DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include)

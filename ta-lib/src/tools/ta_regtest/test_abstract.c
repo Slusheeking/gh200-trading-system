@@ -445,26 +445,26 @@ static ErrorNumber callWithDefaults( const char *funcName, const double *input, 
       return TA_ABS_TST_FAIL_CALLFUNC_3;
    }                       
 
-   /* TODO Add back nan/inf tests. 
+   // Add back nan/inf tests.
    for( i=0; i < funcInfo->nbOutput; i++ )
    {
-	  switch(outputInfo->type)
-	  {
-	  case TA_Output_Real:	     
-		for( j=0; j < outNbElement; j++ )
-		{
-			if( trio_isnan(output[i][j]) ||
-                trio_isinf(output[i][j]))
-			{
-				printf( "Failed for output[%d][%d] = %e\n", i, j, output[i][j] );
-				return TA_ABS_TST_FAIL_INVALID_OUTPUT;
-			}
-		}
-		break;
-	  case TA_Output_Integer:	     
-		break;
-	  }
-   }*/
+  switch(outputInfo->type)
+  {
+  case TA_Output_Real:
+ for( j=0; j < outNbElement; j++ )
+ {
+  if( trio_isnan(output[i][j]) ||
+               trio_isinf(output[i][j]))
+  {
+   printf( "Failed for output[%d][%d] = %e\n", i, j, output[i][j] );
+   return TA_ABS_TST_FAIL_INVALID_OUTPUT;
+  }
+ }
+ break;
+  case TA_Output_Integer:
+ break;
+  }
+   }
 
    /* Do another function call where startIdx == endIdx == 0.
     * In that case, outBegIdx should ALWAYS be zero.

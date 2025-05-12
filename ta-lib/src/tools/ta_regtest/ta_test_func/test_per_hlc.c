@@ -125,7 +125,7 @@ static TA_Test tableTest[] =
    /* NATR TEST    */
    /****************/
    /* TODO Analyze further why NATR requires a very large unstable period.
-    * for now, just disable range testing.
+    * for now, just disable range testing. This requires analyzing the NATR algorithm and test data.
     */
    { 0, TA_NATR_TEST, 0, 251, 14, 0, 0, TA_SUCCESS,       0,  3.9321, 14,  252-14 },
    { 0, TA_NATR_TEST, 0, 251, 14, 0, 0, TA_SUCCESS,       1,  3.7576, 14,  252-14 },
