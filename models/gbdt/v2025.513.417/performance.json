@@ -1,0 +1,44 @@
+{
+  "training": {
+    "training_time_ms": 228.94787788391113,
+    "num_iterations": 200,
+    "feature_importance": {
+      "last_price": 2578.0,
+      "bid_price": 761.0,
+      "ask_price": 219.0,
+      "bid_ask_spread": 1221.0,
+      "open_price": 163.0,
+      "high_price": 91.0,
+      "low_price": 120.0,
+      "volume": 1119.0,
+      "vwap": 38.0,
+      "prev_close": 61.0,
+      "rsi_14": 770.0,
+      "macd": 659.0,
+      "macd_signal": 162.0,
+      "macd_histogram": 26.0,
+      "bb_upper": 466.0,
+      "bb_middle": 189.0,
+      "bb_lower": 111.0,
+      "atr": 402.0,
+      "avg_volume": 400.0,
+      "volume_acceleration": 477.0,
+      "volume_spike": 421.0,
+      "price_change_5m": 670.0,
+      "momentum_1m": 491.0,
+      "sma_cross_signal": 308.0
+    }
+  },
+  "evaluation": {
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "auc": 1.0,
+    "evaluation_time_ms": 11.802196502685547
+  },
+  "latency": {
+    "training_time_ms": 0.0,
+    "evaluation_time_ms": 0.0
+  }
+}

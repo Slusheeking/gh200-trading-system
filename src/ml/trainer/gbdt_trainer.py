@@ -264,7 +264,12 @@ class GBDTTrainer(ModelTrainer):
         # Convert to numpy arrays
         X = np.array(features, dtype=np.float32)
         y = np.array(labels, dtype=np.float32)
-        
+
+        # Log the label distribution for leakage/debugging analysis
+        unique, counts = np.unique(y, return_counts=True)
+        label_dist = dict(zip(unique.tolist(), counts.tolist()))
+        self.logger.info(f"GBDT label distribution: {label_dist}")
+
         # Store feature names if not already set
         if not self.feature_names:
             self.feature_names = [

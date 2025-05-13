@@ -14,7 +14,7 @@
   "use_tensorrt": true,
   "use_fp16": true,
   "max_batch_size": 128,
-  "model_path": "models/gbdt/v2025.513.415/model.pkl",
+  "model_path": "models/gbdt/v2025.513.429/model.pkl",
   "feature_importance_type": "gain",
   "enable_categorical": true,
   "features": [
