@@ -9,7 +9,10 @@ management for the fast path in the trading system.
 import numpy as np
 import os
 import json
+import logging
+import importlib.util
 from typing import Dict, List, Any, Optional
+from src.ml.trainer.base_trainer import ModelTrainer
 
 # Try to import LightGBM
 try:
@@ -17,21 +20,21 @@ try:
     HAS_LIGHTGBM = True
 except (ImportError, ValueError, AttributeError) as e:
     HAS_LIGHTGBM = False
-    import logging
     logging.warning(f"LightGBM not available or incompatible: {str(e)}. GBDT training will not function.")
 
-# Try to import TensorRT
-try:
-    import tensorrt as trt
-    import pycuda.driver as cuda
-    import pycuda.autoinit
-    HAS_TENSORRT = True
-except (ImportError, ValueError, AttributeError) as e:
-    HAS_TENSORRT = False
-    import logging
-    logging.warning(f"TensorRT not available or incompatible: {str(e)}. Falling back to CPU inference.")
+# Check for TensorRT and PyCUDA availability using importlib
+HAS_TENSORRT = False
+if (importlib.util.find_spec("tensorrt") is not None and
+    importlib.util.find_spec("pycuda") is not None):
+    try:
+        import tensorrt as trt
+        import pycuda.driver as cuda
+        # Initialize CUDA by accessing the module rather than importing it directly
+        cuda.init()  # Initialize CUDA driver
+        HAS_TENSORRT = True
+    except (ImportError, ValueError, AttributeError) as e:
+        logging.warning(f"TensorRT not available or incompatible: {str(e)}. Falling back to CPU inference.")
 
-from src.ml.trainer.base_trainer import ModelTrainer
 
 class GBDTTrainer(ModelTrainer):
     """
@@ -137,6 +140,8 @@ class GBDTTrainer(ModelTrainer):
         if self.model_type == "gbdt" and "sample_symbols" in train_data:
             training_symbols = list(set(train_data["sample_symbols"]))
         
+        # Log the number of unique symbols used for training
+        self.logger.info(f"Number of unique symbols used for training: {len(training_symbols)}")
         # Validate training vs. production symbol coverage
         if production_symbols and training_symbols:
             coverage_metrics = self.data_manager.validate_symbol_coverage(
@@ -179,7 +184,8 @@ class GBDTTrainer(ModelTrainer):
             "training": training_history,
             "performance": {
                 "evaluation": evaluation_metrics
-            }
+            },
+            "num_training_symbols": len(training_symbols)
         }
         
         # Store training metadata
@@ -189,7 +195,8 @@ class GBDTTrainer(ModelTrainer):
             "train_test_split": train_test_split,
             "random_seed": random_seed,
             "feature_names": self.feature_names,
-            "feature_importance": self.get_feature_importance()
+            "feature_importance": self.get_feature_importance(),
+            "num_training_symbols": len(training_symbols)
         })
         
         # Store performance metrics
@@ -284,18 +291,24 @@ class GBDTTrainer(ModelTrainer):
         Returns:
             Training history/metrics
         """
-        self.logger.info("Training GBDT model")
+        self.logger.info("Training GBDT model with production-identical features")
         
         # Start timing
         self.latency_profiler.start_phase("training")
         
-        # Process training data
-        lgb_train = self._prepare_lgb_dataset(train_data)
+        # Use pre-processed features from the market data processor
+        X_train = train_data["X"]
+        y_train = train_data["y"]
+        
+        # Create LightGBM dataset
+        lgb_train = lgb.Dataset(X_train, label=y_train, feature_name=self.feature_names)
         
         # Process validation data if provided
         lgb_valid = None
         if validation_data is not None:
-            lgb_valid = self._prepare_lgb_dataset(validation_data)
+            X_valid = validation_data["X"]
+            y_valid = validation_data["y"]
+            lgb_valid = lgb.Dataset(X_valid, label=y_valid, feature_name=self.feature_names)
             
         # Set up early stopping callback
         callbacks = []
@@ -457,7 +470,7 @@ class GBDTTrainer(ModelTrainer):
         Returns:
             Evaluation metrics
         """
-        self.logger.info("Evaluating GBDT model")
+        self.logger.info("Evaluating GBDT model with production-identical features")
         
         # Start timing
         self.latency_profiler.start_phase("evaluation")
@@ -466,12 +479,9 @@ class GBDTTrainer(ModelTrainer):
         if self.model is None:
             raise RuntimeError("Model is not trained")
         
-        # Process test data
-        lgb_test = self._prepare_lgb_dataset(test_data)
-        
-        # Get feature data and labels
-        X = lgb_test.data
-        y = lgb_test.label
+        # Use pre-processed features from the market data processor
+        X = test_data["X"]
+        y = test_data["y"]
         
         # Make predictions - use TensorRT if available
         if self.use_tensorrt and self.trt_engine is not None and self.trt_context is not None:
@@ -574,7 +584,7 @@ class GBDTTrainer(ModelTrainer):
         Returns:
             Path to saved model
         """
-        self.logger.info(f"Saving GBDT model version {version}")
+        self.logger.info(f"Saving GBDT model version {version} with production-compatible format")
         
         # Check if model is trained
         if self.model is None:
@@ -590,13 +600,8 @@ class GBDTTrainer(ModelTrainer):
             self.latency_profiler.create_latency_profile()
         )
         
-        # Export to TensorRT if enabled
-        if self.use_tensorrt:
-            try:
-                self._export_to_tensorrt(model_dir, version)
-            except Exception as e:
-                self.logger.error(f"Error exporting to TensorRT: {str(e)}")
-                self.logger.error("Continuing without TensorRT export")
+        # Export model for production use
+        self._export_model_for_production(model_dir)
         
         self.logger.info(f"Saved GBDT model version {version} to {model_dir}")
         
@@ -610,101 +615,26 @@ class GBDTTrainer(ModelTrainer):
             model_dir: Directory where the model is saved
             version: Version string
         """
-        if not HAS_TENSORRT:
-            self.logger.warning("TensorRT not available, skipping export")
-            return
-            
-        self.logger.info(f"Exporting GBDT model to TensorRT format")
+        # Since we're removing ONNX, we'll just log a message about TensorRT
+        self.logger.info("TensorRT export via ONNX has been removed from the codebase")
         
-        # Create TensorRT engine file path
-        engine_file = os.path.join(self.tensorrt_cache_path, f"gbdt_{version}.engine")
-        
-        # Create TensorRT logger
-        trt_logger = trt.Logger(trt.Logger.WARNING)
-        
-        try:
-            # Create builder and network
-            builder = trt.Builder(trt_logger)
-            network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
-            config = builder.create_builder_config()
+        # Instead, we'll focus on direct model export
+        self._export_model_for_production(model_dir)
             
-            # Set FP16 mode if enabled
-            if self.tensorrt_fp16:
-                config.set_flag(trt.BuilderFlag.FP16)
-                
-            # Set max workspace size (8GB)
-            config.max_workspace_size = 8 * (1 << 30)
-            
-            # Create ONNX parser
-            parser = trt.OnnxParser(network, trt_logger)
-            
-            # Export LightGBM model to ONNX format first
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.onnx') as tmp:
-                onnx_path = tmp.name
-                self._export_to_onnx(onnx_path)
-                
-                # Parse ONNX file
-                with open(onnx_path, 'rb') as f:
-                    if not parser.parse(f.read()):
-                        for error in range(parser.num_errors):
-                            self.logger.error(f"ONNX parsing error: {parser.get_error(error)}")
-                        raise RuntimeError("Failed to parse ONNX model")
-                
-                # Build engine
-                self.logger.info("Building TensorRT engine (this may take a while)...")
-                engine = builder.build_engine(network, config)
-                if engine is None:
-                    raise RuntimeError("Failed to build TensorRT engine")
-                    
-                # Serialize engine to file
-                with open(engine_file, 'wb') as f:
-                    f.write(engine.serialize())
-                    
-            self.logger.info(f"Successfully exported GBDT model to TensorRT format: {engine_file}")
-            
-            # Initialize TensorRT engine
-            self._initialize_tensorrt(engine_file)
-            
-        except Exception as e:
-            self.logger.error(f"Error exporting to TensorRT: {str(e)}")
-            import traceback
-            self.logger.error(traceback.format_exc())
-            
-    def _export_to_onnx(self, onnx_path: str) -> None:
+    def _export_model_for_production(self, model_dir: str) -> None:
         """
-        Export LightGBM model to ONNX format.
+        Export model in a format suitable for production use.
         
         Args:
-            onnx_path: Path to save ONNX model
+            model_dir: Directory where the model is saved
         """
-        self.logger.info(f"Exporting LightGBM model to ONNX format: {onnx_path}")
+        self.logger.info(f"Exporting model for production use to {model_dir}")
         
-        try:
-            import onnxmltools
-            from onnxmltools.convert.lightgbm.operator_converters.LightGbm import convert_lightgbm
-            from onnxconverter_common.data_types import FloatTensorType
-            
-            # Define input shape based on feature count
-            input_shape = [None, len(self.feature_names)]
-            
-            # Convert to ONNX
-            onnx_model = convert_lightgbm(
-                self.model,
-                initial_types=[('input', FloatTensorType(input_shape))],
-                target_opset=12
-            )
-            
-            # Save ONNX model
-            onnxmltools.utils.save_model(onnx_model, onnx_path)
-            
-            self.logger.info(f"Successfully exported to ONNX format")
-            
-        except Exception as e:
-            self.logger.error(f"Error exporting to ONNX: {str(e)}")
-            import traceback
-            self.logger.error(traceback.format_exc())
-            raise
+        # Save model in native LightGBM format
+        model_path = os.path.join(model_dir, "model.pkl")
+        self.model.save_model(model_path)
+        
+        self.logger.info(f"Successfully exported model to {model_path}")
             
     def _initialize_tensorrt(self, engine_file: str) -> None:
         """

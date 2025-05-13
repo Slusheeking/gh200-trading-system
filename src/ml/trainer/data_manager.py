@@ -1000,10 +1000,56 @@ class DataManager:
         except Exception as e:
             self.logger.error(f"Error calculating technical indicators for {symbol}: {str(e)}")
         
+    def fetch_market_snapshots_for_period(self, start_date: str, end_date: str,
+                                         symbols: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+        """
+        Fetch historical market snapshots for a specified period.
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            symbols: List of symbols to include (optional)
+            
+        Returns:
+            List of market snapshots in the same format as production
+        """
+        self.logger.info(f"Fetching market snapshots for period {start_date} to {end_date}")
+        
+        # Convert dates to datetime objects
+        start_dt = pd.to_datetime(start_date)
+        end_dt = pd.to_datetime(end_date)
+        
+        # Generate date range
+        date_range = pd.date_range(start=start_dt, end=end_dt, freq='D')
+        
+        # Fetch snapshots for each date
+        snapshots = []
+        
+        for date in date_range:
+            # Skip weekends and holidays
+            if not self._is_trading_day(date):
+                continue
+                
+            date_str = date.strftime('%Y-%m-%d')
+            
+            # Use existing method to fetch snapshot for this date
+            snapshot = self.fetch_market_snapshots(date_str)
+            
+            # Filter symbols if requested
+            if symbols and "symbols" in snapshot:
+                filtered_symbols = {sym: data for sym, data in snapshot["symbols"].items()
+                                  if sym in symbols}
+                snapshot["symbols"] = filtered_symbols
+                
+            snapshots.append(snapshot)
+        
+        self.logger.info(f"Fetched {len(snapshots)} market snapshots for period {start_date} to {end_date}")
+        return snapshots
+        
     def create_training_dataset(self, model_type: str, start_date: str, end_date: str,
-                               symbols: Optional[List[str]] = None,
-                               train_test_split: float = 0.8,
-                               random_seed: int = 42) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+                                symbols: Optional[List[str]] = None,
+                                train_test_split: float = 0.8,
+                                random_seed: int = 42) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Create a training dataset for a specific model type with optimized batch processing.
         
@@ -1178,7 +1224,7 @@ class DataManager:
             curr_snapshot = snapshots[i]
             next_snapshot = snapshots[i + 1]
             curr_date = dates[i]
-            next_date = dates[i + 1]
+            # next_date variable is not used, so we'll remove it
 
             for symbol in symbols:
                 # Ensure symbol is present in both current and next snapshot
@@ -2001,13 +2047,15 @@ class DataManager:
         
         # Basic metrics
         overlap = train_set.intersection(prod_set)
-        only_in_train = train_set - prod_set
+        # Calculate but don't assign the variable if it's not used
+        # only_in_train = train_set - prod_set
         only_in_prod = prod_set - train_set
         
         # Calculate coverage percentages
         overlap_count = len(overlap)
-        train_only_count = len(only_in_train)
-        prod_only_count = len(only_in_prod)
+        # These variables are calculated but not used, so we'll remove them
+        # train_only_count = len(only_in_train)
+        # prod_only_count = len(only_in_prod)
         
         prod_coverage_pct = (overlap_count / max(1, len(prod_set))) * 100
         
@@ -2052,9 +2100,9 @@ class DataManager:
         
         if prod_coverage_pct < 95:
             self.logger.warning(f"Low symbol coverage: {prod_coverage_pct:.1f}% - training may not be representative")
-        
         if dist_similarity < 80:
-            self.logger.warning(f"Symbol distribution differs significantly between training and production")
+            self.logger.warning("Symbol distribution differs significantly between training and production")
+            
             
         return result
     

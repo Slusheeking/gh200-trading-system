@@ -577,3 +577,181 @@ class ModelVersionManager:
         self.logger.info(f"Loaded {model_type} model v{version} from {model_dir}")
         
         return model, metadata
+        
+    def limit_model_versions(self, model_type: str, max_versions: int = 10) -> None:
+        """
+        Limit the number of model versions kept for a model type.
+        Keeps only the top N versions based on performance metrics.
+        
+        Args:
+            model_type: Type of model
+            max_versions: Maximum number of versions to keep
+        """
+        self.logger.info(f"Limiting {model_type} models to top {max_versions} versions")
+        
+        # Load registry
+        registry = self._load_registry()
+        
+        # Get model registry
+        model_registry = registry["models"].get(model_type)
+        if not model_registry or not model_registry.get("versions"):
+            self.logger.info(f"No versions found for model type: {model_type}")
+            return
+            
+        versions = model_registry["versions"]
+        
+        # If we don't have more than the max, no need to limit
+        if len(versions) <= max_versions:
+            self.logger.info(f"Only {len(versions)} versions exist for {model_type}, no cleanup needed")
+            return
+            
+        # Sort versions by performance metrics (higher is better)
+        # First try to use AUC as the metric, then accuracy, then any available metric
+        def get_performance_score(version_info):
+            perf = version_info.get("performance", {})
+            eval_metrics = perf.get("evaluation", {})
+            
+            # Try to get AUC first
+            if "auc" in eval_metrics:
+                return float(eval_metrics["auc"])
+            # Then try accuracy
+            elif "accuracy" in eval_metrics:
+                return float(eval_metrics["accuracy"])
+            # Then try f1
+            elif "f1" in eval_metrics:
+                return float(eval_metrics["f1"])
+            # Then try any other numeric metric
+            else:
+                for key, value in eval_metrics.items():
+                    if isinstance(value, (int, float)):
+                        return float(value)
+                return 0.0
+        
+        # Sort versions by performance score (descending)
+        sorted_versions = sorted(versions, key=get_performance_score, reverse=True)
+        
+        # Keep only the top N versions
+        versions_to_keep = sorted_versions[:max_versions]
+        versions_to_delete = sorted_versions[max_versions:]
+        
+        # Update registry with versions to keep
+        model_registry["versions"] = versions_to_keep
+        registry["models"][model_type] = model_registry
+        
+        # Save registry
+        self._save_registry(registry)
+        
+        # Delete model directories for versions to delete
+        for version_info in versions_to_delete:
+            version = version_info["version"]
+            model_dir = self.get_model_dir(model_type, version)
+            
+            # Check if this is the active version
+            active_version = model_registry.get("active_version")
+            if active_version == version:
+                self.logger.warning(f"Cannot delete active version {version} for {model_type}")
+                continue
+                
+            # Delete model directory
+            try:
+                if os.path.exists(model_dir):
+                    shutil.rmtree(model_dir)
+                    self.logger.info(f"Deleted {model_type} model v{version} directory: {model_dir}")
+            except Exception as e:
+                self.logger.error(f"Error deleting model directory {model_dir}: {str(e)}")
+                
+        self.logger.info(f"Kept top {len(versions_to_keep)} versions for {model_type}, deleted {len(versions_to_delete)} versions")
+        
+    def promote_best_model(self, model_type: str) -> Optional[str]:
+        """
+        Promote the best performing model to be the active version.
+        
+        Args:
+            model_type: Type of model
+            
+        Returns:
+            Version of the promoted model or None if no models available
+        """
+        self.logger.info(f"Promoting best {model_type} model to active version")
+        
+        # Load registry
+        registry = self._load_registry()
+        
+        # Get model registry
+        model_registry = registry["models"].get(model_type)
+        if not model_registry or not model_registry.get("versions"):
+            self.logger.info(f"No versions found for model type: {model_type}")
+            return None
+            
+        versions = model_registry["versions"]
+        
+        # Sort versions by performance metrics (higher is better)
+        def get_performance_score(version_info):
+            perf = version_info.get("performance", {})
+            eval_metrics = perf.get("evaluation", {})
+            
+            # Try to get AUC first
+            if "auc" in eval_metrics:
+                return float(eval_metrics["auc"])
+            # Then try accuracy
+            elif "accuracy" in eval_metrics:
+                return float(eval_metrics["accuracy"])
+            # Then try f1
+            elif "f1" in eval_metrics:
+                return float(eval_metrics["f1"])
+            # Then try any other numeric metric
+            else:
+                for key, value in eval_metrics.items():
+                    if isinstance(value, (int, float)):
+                        return float(value)
+                return 0.0
+        
+        # Sort versions by performance score (descending)
+        sorted_versions = sorted(versions, key=get_performance_score, reverse=True)
+        
+        if not sorted_versions:
+            self.logger.warning(f"No versions with performance metrics found for {model_type}")
+            return None
+            
+        # Get best version
+        best_version = sorted_versions[0]["version"]
+        
+        # Set as active version
+        self.set_active_version(model_type, best_version)
+        
+        self.logger.info(f"Promoted {model_type} model v{best_version} to active version")
+        
+        return best_version
+        
+    def clean_training_data(self) -> None:
+        """
+        Clean up training data to keep the system clean.
+        Deletes cached data and temporary files.
+        """
+        self.logger.info("Cleaning up training data")
+        
+        # Clean up cache directory
+        cache_dir = os.path.join("data", "cache")
+        if os.path.exists(cache_dir):
+            try:
+                # Delete all files in cache directory
+                for filename in os.listdir(cache_dir):
+                    file_path = os.path.join(cache_dir, filename)
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                        
+                self.logger.info(f"Cleaned up cache directory: {cache_dir}")
+            except Exception as e:
+                self.logger.error(f"Error cleaning cache directory: {str(e)}")
+                
+        # Clean up temporary files
+        temp_dirs = ["tmp", "temp"]
+        for temp_dir in temp_dirs:
+            if os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                    self.logger.info(f"Cleaned up temporary directory: {temp_dir}")
+                except Exception as e:
+                    self.logger.error(f"Error cleaning temporary directory {temp_dir}: {str(e)}")

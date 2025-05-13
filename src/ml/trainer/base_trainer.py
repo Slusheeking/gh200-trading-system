@@ -7,7 +7,7 @@ It defines common functionality and interfaces that all trainers should implemen
 
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 import numpy as np
 
 from src.monitoring.log import logging as log
@@ -15,6 +15,7 @@ from config.config_loader import get_config
 from src.ml.trainer.latency_profiler import LatencyProfiler
 from src.ml.trainer.model_version_manager import ModelVersionManager
 from src.ml.trainer.data_manager import DataManager
+from src.ml.trainer.training_market_processor import TrainingMarketDataProcessor
 
 
 class ModelTrainer(ABC):
@@ -54,6 +55,10 @@ class ModelTrainer(ABC):
         self.latency_profiler = LatencyProfiler(f"{model_type}_trainer")
         self.version_manager = ModelVersionManager(config)
         self.data_manager = DataManager(config)
+        
+        # Initialize market data processor for production-identical processing
+        self.market_processor = TrainingMarketDataProcessor(config)
+        self.logger.info("Initialized market data processor for production-identical processing")
 
         # Initialize model state
         self.model = None
@@ -164,26 +169,26 @@ class ModelTrainer(ABC):
         """
         self.logger.info(
             f"Training and evaluating {self.model_type} model "
-            f"on data from {start_date} to {end_date}"
+            f"on data from {start_date} to {end_date} using production-identical processing"
         )
 
         # Start timing
         self.latency_profiler.start_phase("train_and_evaluate")
 
-        # Create training dataset
+        # Create training dataset using production-identical processing
         train_test_split = self.training_config.get("train_test_split", 0.8)
         random_seed = self.training_config.get("random_seed", 42)
 
         self.logger.info(
-            f"Creating training dataset with train/test split {train_test_split}"
+            f"Creating training dataset with production-identical processing and train/test split {train_test_split}"
         )
-        train_data, test_data = self.data_manager.create_training_dataset(
-            self.model_type,
+        
+        # Use the new method that leverages the market data processor
+        train_data, test_data = self.prepare_training_data(
             start_date,
             end_date,
             symbols,
-            train_test_split,
-            random_seed,
+            train_test_split
         )
 
         # Build model
@@ -191,7 +196,7 @@ class ModelTrainer(ABC):
         self.model = self.build_model()
 
         # Train model
-        self.logger.info("Training model")
+        self.logger.info("Training model with production-identical features")
         self.latency_profiler.start_phase("training")
         training_history = self.train(train_data)
         training_time = self.latency_profiler.end_phase()
@@ -199,7 +204,7 @@ class ModelTrainer(ABC):
         self.is_trained = True
 
         # Evaluate model
-        self.logger.info("Evaluating model")
+        self.logger.info("Evaluating model with production-identical features")
         self.latency_profiler.start_phase("evaluation")
         evaluation_metrics = self.evaluate(test_data)
         evaluation_time = self.latency_profiler.end_phase()
@@ -234,10 +239,24 @@ class ModelTrainer(ABC):
                 model_dir = self.save(version)
                 self.logger.info(f"Successfully saved model to {model_dir}")
                 
-                # Set as active if requested
+                # Limit the number of model versions to keep only the top 10
+                self.logger.info(f"Limiting {self.model_type} models to top 10 versions")
+                self.version_manager.limit_model_versions(self.model_type, 10)
+                
+                # Automatically promote the best model
                 if set_as_active:
-                    self.logger.info(f"Setting version {version} as active")
-                    self.version_manager.set_active_version(self.model_type, version)
+                    self.logger.info(f"Promoting best {self.model_type} model to active version")
+                    best_version = self.version_manager.promote_best_model(self.model_type)
+                    if best_version:
+                        self.logger.info(f"Promoted {self.model_type} model v{best_version} to active version")
+                    else:
+                        self.logger.warning("Could not promote best model, setting current version as active")
+                        self.version_manager.set_active_version(self.model_type, version)
+                
+                # Clean up training data to keep the system clean
+                self.logger.info("Cleaning up training data")
+                self.version_manager.clean_training_data()
+                
             except Exception as e:
                 self.logger.error(f"Error saving model: {str(e)}")
                 raise
@@ -257,6 +276,49 @@ class ModelTrainer(ABC):
         )
 
         return result
+        
+    def prepare_training_data(self, start_date: str, end_date: str,
+                             symbols: Optional[List[str]] = None,
+                             train_test_split: float = 0.8) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Prepare training data using production-identical processing
+        
+        Args:
+            start_date: Start date for training data
+            end_date: End date for training data
+            symbols: Optional list of symbols to include
+            train_test_split: Ratio for train/test split
+            
+        Returns:
+            Tuple of (train_data, test_data) dictionaries
+        """
+        self.logger.info(f"Preparing training data for {self.model_type} with production-identical processing")
+        
+        # Get raw market snapshots from data manager
+        snapshots = self.data_manager.fetch_market_snapshots_for_period(
+            start_date, end_date, symbols)
+        
+        # Process snapshots using production-identical processor
+        processed_snapshots = self.market_processor.process_historical_snapshots(snapshots)
+        
+        # Split into training and validation sets
+        split_idx = int(len(processed_snapshots) * train_test_split)
+        
+        # Process snapshots and extract features for this model type
+        train_data = self.market_processor.batch_process_snapshots(
+            processed_snapshots[:split_idx], self.model_type)
+        
+        test_data = self.market_processor.batch_process_snapshots(
+            processed_snapshots[split_idx:], self.model_type)
+        
+        # Add raw snapshots for reference
+        train_data["snapshots"] = processed_snapshots[:split_idx]
+        test_data["snapshots"] = processed_snapshots[split_idx:]
+        
+        self.logger.info(f"Prepared training data with {len(train_data['X'])} training samples "
+                       f"and {len(test_data['X'])} testing samples")
+        
+        return train_data, test_data
 
     def _get_model_parameters(self) -> Dict[str, Any]:
         """

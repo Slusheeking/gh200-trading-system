@@ -119,7 +119,7 @@ def analyze_parquet_files():
         # Convert to minutes for easier interpretation
         time_diffs_minutes = time_diffs.dt.total_seconds() / 60
         
-        print(f'Time interval statistics (in minutes):')
+        print('Time interval statistics (in minutes):')
         print(f'  Min: {time_diffs_minutes.min()}')
         print(f'  Max: {time_diffs_minutes.max()}')
         print(f'  Mean: {time_diffs_minutes.mean():.2f}')
@@ -127,7 +127,7 @@ def analyze_parquet_files():
         
         # Count occurrences of each interval
         interval_counts = time_diffs_minutes.value_counts().sort_index()
-        print(f'Most common intervals (minutes: count):')
+        print('Most common intervals (minutes: count):')
         for interval, count in interval_counts.head(5).items():
             print(f'  {interval}: {count}')
         

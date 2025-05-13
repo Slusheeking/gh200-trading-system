@@ -13,59 +13,49 @@ import argparse
 import datetime
 import time
 
+# Import required GPU libraries - system is GPU-only
+try:
+    import tensorrt as trt
+    import pycuda.driver as cuda
+    import pycuda.autoinit  # noqa: F401
+except ImportError as e:
+    raise RuntimeError(f"GPU-only mode requires CUDA and TensorRT: {str(e)}")
+
 # Add project root to path
 script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(script_dir, "../../.."))
 sys.path.insert(0, project_root)
 
-from src.monitoring.log import logging as log
-from config.config_loader import get_config
-from src.ml.trainer.gbdt_trainer import GBDTTrainer
-from src.ml.trainer.axial_attention_trainer import AxialAttentionTrainer
-from src.ml.trainer.lstm_gru_trainer import LSTMGRUTrainer
-from src.ml.trainer.model_version_manager import ModelVersionManager
+from src.monitoring.log import logging as log # noqa: E402
+from config.config_loader import get_config # noqa: E402
+from src.ml.trainer.gbdt_trainer import GBDTTrainer # noqa: E402
+from src.ml.trainer.axial_attention_trainer import AxialAttentionTrainer # noqa: E402
+from src.ml.trainer.lstm_gru_trainer import LSTMGRUTrainer # noqa: E402
+from src.ml.trainer.model_version_manager import ModelVersionManager # noqa: E402
 
-# Try to import TensorRT
-try:
-    import tensorrt as trt
-    import pycuda.driver as cuda
-    import pycuda.autoinit
-    HAS_TENSORRT = True
-except (ImportError, ValueError, AttributeError) as e:
-    HAS_TENSORRT = False
-    import logging
-    logging.warning(f"TensorRT not available or incompatible: {str(e)}. Falling back to CPU inference.")
+# Set GPU and TensorRT flags - always true in GPU-only mode
+HAS_GPU = True
+HAS_TENSORRT = True
 
-
-def initialize_tensorrt(config):
+def initialize_production_environment(config):
     """
-    Initialize TensorRT if enabled in configuration.
+    Initialize production-identical environment for training.
     
     Args:
         config: Configuration dictionary
         
     Returns:
-        True if TensorRT was successfully initialized, False otherwise
+        True if initialization was successful, False otherwise
     """
-    logger = log.setup_logger("tensorrt_init")
+    logger = log.setup_logger("production_env_init")
     
-    # Check if TensorRT is enabled
-    if not config.get("use_tensorrt", False):
-        logger.info("TensorRT is disabled in configuration")
-        return False
-        
-    # Check if TensorRT is available
-    if not HAS_TENSORRT:
-        logger.warning("TensorRT is not available, falling back to CPU inference")
-        return False
-        
     try:
-        # Create TensorRT logger
-        trt_logger = trt.Logger(trt.Logger.WARNING)
+        # Initialize TensorRT for GPU-only operation
+        logger.info("Initializing GPU-only environment with TensorRT")
         
-        # Log TensorRT version
-        version = trt.__version__
-        logger.info(f"TensorRT version: {version}")
+        # Log GPU and TensorRT availability
+        logger.info("CUDA is available for GPU acceleration")
+        logger.info(f"TensorRT version {trt.__version__} is available for acceleration")
         
         # Check available GPU memory
         free_mem, total_mem = cuda.mem_get_info()
@@ -73,21 +63,38 @@ def initialize_tensorrt(config):
         total_mem_gb = total_mem / (1024 ** 3)
         logger.info(f"GPU memory: {free_mem_gb:.2f} GB free / {total_mem_gb:.2f} GB total")
         
+        # Verify minimum GPU memory requirements (8GB)
+        if total_mem_gb < 8:
+            raise RuntimeError(f"Insufficient GPU memory: {total_mem_gb:.2f}GB available, minimum 8GB required")
+            
         # Create TensorRT cache directory if it doesn't exist
         tensorrt_cache_path = config.get("export", {}).get("tensorrt_cache_path", "models/trt_cache")
         os.makedirs(tensorrt_cache_path, exist_ok=True)
         logger.info(f"TensorRT cache directory: {tensorrt_cache_path}")
         
+        # Always enable TensorRT in GPU-only mode
+        config["use_tensorrt"] = True
+        
         # Log TensorRT configuration
         tensorrt_config = config.get("tensorrt", {})
         logger.info(f"TensorRT configuration: {tensorrt_config}")
         
-        logger.info("TensorRT initialized successfully")
+        # Create cache directory if it doesn't exist
+        cache_path = config.get("data_sources", {}).get("cache_path", "data/cache")
+        os.makedirs(cache_path, exist_ok=True)
+        logger.info(f"Market data cache directory: {cache_path}")
+        
+        # Log market data processing configuration
+        market_data_config = config.get("data_sources", {})
+        logger.info(f"Market data processing configuration: {market_data_config}")
+        
+        logger.info("GPU-only production environment initialized successfully")
         return True
         
     except Exception as e:
-        logger.error(f"Error initializing TensorRT: {str(e)}")
-        return False
+        logger.error(f"Error initializing GPU-only production environment: {str(e)}")
+        # In GPU-only mode, we don't fall back to CPU - we fail
+        raise RuntimeError(f"GPU-only mode requires CUDA and TensorRT: {str(e)}")
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -144,6 +151,12 @@ def parse_arguments():
         "--no-tensorrt",
         action="store_true",
         help="Disable TensorRT acceleration",
+    )
+    
+    parser.add_argument(
+        "--measure-latency",
+        action="store_true",
+        help="Measure processing latency for each snapshot",
     )
     
     parser.add_argument(
@@ -225,9 +238,9 @@ def get_version(args):
 
 
 def train_gbdt_model(config, start_date, end_date, symbols, version, set_as_active):
-    """Train GBDT model with TensorRT support"""
+    """Train GBDT model with production-identical processing"""
     logger = log.setup_logger("train_coordinator")
-    logger.info("Training GBDT model")
+    logger.info("Training GBDT model with production-identical processing")
     
     # Record start time
     start_time = time.time()
@@ -235,11 +248,8 @@ def train_gbdt_model(config, start_date, end_date, symbols, version, set_as_acti
     # Initialize trainer
     trainer = GBDTTrainer(config)
     
-    # Log TensorRT status
-    if config.get("use_tensorrt", False):
-        logger.info("TensorRT acceleration is enabled for GBDT model")
-    else:
-        logger.info("TensorRT acceleration is disabled for GBDT model")
+    # Log processing status
+    logger.info("Using production-identical market data processing for training")
     
     # Train and evaluate model
     results = trainer.train_and_evaluate(
@@ -267,9 +277,9 @@ def train_gbdt_model(config, start_date, end_date, symbols, version, set_as_acti
 
 
 def train_axial_attention_model(config, start_date, end_date, symbols, version, set_as_active):
-    """Train Axial Attention model with TensorRT support"""
+    """Train Axial Attention model with production-identical processing"""
     logger = log.setup_logger("train_coordinator")
-    logger.info("Training Axial Attention model")
+    logger.info("Training Axial Attention model with production-identical processing")
     
     # Record start time
     start_time = time.time()
@@ -277,11 +287,8 @@ def train_axial_attention_model(config, start_date, end_date, symbols, version, 
     # Initialize trainer
     trainer = AxialAttentionTrainer(config)
     
-    # Log TensorRT status
-    if config.get("use_tensorrt", False):
-        logger.info("TensorRT acceleration is enabled for Axial Attention model")
-    else:
-        logger.info("TensorRT acceleration is disabled for Axial Attention model")
+    # Log processing status
+    logger.info("Using production-identical market data processing for training")
     
     # Train and evaluate model
     results = trainer.train_and_evaluate(
@@ -309,9 +316,9 @@ def train_axial_attention_model(config, start_date, end_date, symbols, version, 
 
 
 def train_lstm_gru_model(config, start_date, end_date, symbols, version, set_as_active):
-    """Train LSTM/GRU model with TensorRT support"""
+    """Train LSTM/GRU model with production-identical processing"""
     logger = log.setup_logger("train_coordinator")
-    logger.info("Training LSTM/GRU model")
+    logger.info("Training LSTM/GRU model with production-identical processing")
     
     # Record start time
     start_time = time.time()
@@ -319,11 +326,8 @@ def train_lstm_gru_model(config, start_date, end_date, symbols, version, set_as_
     # Initialize trainer
     trainer = LSTMGRUTrainer(config)
     
-    # Log TensorRT status
-    if config.get("use_tensorrt", False):
-        logger.info("TensorRT acceleration is enabled for LSTM/GRU model")
-    else:
-        logger.info("TensorRT acceleration is disabled for LSTM/GRU model")
+    # Log processing status
+    logger.info("Using production-identical market data processing for training")
     
     # Train and evaluate model
     results = trainer.train_and_evaluate(
@@ -358,27 +362,32 @@ def save_training_summary(results, version):
     summary_dir = os.path.join("models", "training_summaries")
     os.makedirs(summary_dir, exist_ok=True)
     
-    # Add system information to results
+    # Add system information to results - GPU-only mode
     results["system_info"] = {
         "timestamp": datetime.datetime.now().isoformat(),
-        "tensorrt_available": HAS_TENSORRT,
-        "tensorrt_enabled": results.get("tensorrt_enabled", False)
+        "gpu_available": True,  # Always true in GPU-only mode
+        "gpu_enabled": True,    # Always true in GPU-only mode
+        "tensorrt_available": True,  # Always true in GPU-only mode
+        "tensorrt_enabled": True,    # Always true in GPU-only mode
+        "tensorrt_version": trt.__version__
     }
     
-    # Add hardware information if TensorRT is enabled
-    if results.get("tensorrt_enabled", False) and HAS_TENSORRT:
-        try:
-            # Get GPU information
-            free_mem, total_mem = cuda.mem_get_info()
-            results["system_info"]["gpu_memory"] = {
-                "free_gb": free_mem / (1024 ** 3),
-                "total_gb": total_mem / (1024 ** 3)
-            }
+    # Add GPU hardware information
+    try:
+        free_mem, total_mem = cuda.mem_get_info()
+        results["system_info"]["gpu_memory"] = {
+            "free_gb": free_mem / (1024 ** 3),
+            "total_gb": total_mem / (1024 ** 3)
+        }
+    except Exception as e:
+        logger.error(f"Error getting GPU information in GPU-only mode: {str(e)}")
             
-            # Get TensorRT version
-            results["system_info"]["tensorrt_version"] = trt.__version__
-        except Exception as e:
-            logger.warning(f"Error getting GPU information: {str(e)}")
+    # Add latency metrics summary if available
+    for model_type, model_results in results.get("models", {}).items():
+        if "performance" in model_results and "latency_metrics" in model_results.get("performance", {}):
+            latency_metrics = model_results["performance"]["latency_metrics"]
+            logger.info(f"Latency metrics for {model_type}: "
+                      f"avg={latency_metrics.get('avg_snapshot_latency_ms', 0):.2f}ms")
     
     # Generate summary file path
     summary_path = os.path.join(summary_dir, f"training_summary_{version}.json")
@@ -394,7 +403,7 @@ def main():
     """Main function"""
     # Set up logging
     logger = log.setup_logger("train_coordinator")
-    logger.info("Starting model training coordinator")
+    logger.info("Starting model training coordinator with production-identical processing")
     
     # Parse command line arguments
     args = parse_arguments()
@@ -402,15 +411,28 @@ def main():
     # Load configuration
     config = get_config()
     
-    # Update configuration based on command line arguments
-    if args.no_tensorrt:
-        config["use_tensorrt"] = False
+    # In GPU-only mode, TensorRT is always enabled
+    config["use_tensorrt"] = True
+    logger.info("TensorRT acceleration enabled in GPU-only mode (--no-tensorrt flag ignored)")
+    
+    # Configure latency measurement
+    if args.measure_latency:
+        config["measure_latency"] = True
+        logger.info("Latency measurement enabled via command line")
     else:
-        # Initialize TensorRT if enabled
-        tensorrt_initialized = initialize_tensorrt(config)
-        if config.get("use_tensorrt", False) and not tensorrt_initialized:
-            logger.warning("TensorRT initialization failed, falling back to CPU inference")
-            config["use_tensorrt"] = False
+        config["measure_latency"] = False
+    
+    # Initialize production environment - will raise an error if GPU is not available
+    initialize_production_environment(config)
+    
+    # Pass latency measurement configuration to training market processor
+    if config.get("measure_latency", False):
+        if "ml" not in config:
+            config["ml"] = {}
+        if "training" not in config["ml"]:
+            config["ml"]["training"] = {}
+        config["ml"]["training"]["measure_latency"] = True
+        logger.info("Configured training market processor to measure latency")
     
     # Get date range
     start_date, end_date = get_date_range(args, config)
@@ -448,14 +470,16 @@ def main():
     else:
         logger.warning("Models will be saved but NOT set as active - use with caution")
     
-    # Initialize results dictionary
+    # Initialize results dictionary - GPU-only mode
     results = {
         "version": version,
         "training_period": {
             "start_date": start_date,
             "end_date": end_date
         },
-        "tensorrt_enabled": config.get("use_tensorrt", False),
+        "gpu_enabled": True,  # Always true in GPU-only mode
+        "tensorrt_enabled": True,  # Always true in GPU-only mode
+        "measure_latency": config.get("measure_latency", False),
         "models": {}
     }
     
