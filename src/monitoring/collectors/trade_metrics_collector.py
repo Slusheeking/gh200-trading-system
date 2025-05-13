@@ -108,7 +108,7 @@ class TradeMetricsCollector:
             # Skip if no trades
             if not self.historical_trades:
                 return
-
+            
             # Calculate statistics
             total_trades = len(self.historical_trades)
             winning_trades = [
@@ -129,7 +129,7 @@ class TradeMetricsCollector:
             avg_profit = total_profit / win_count if win_count > 0 else 0
             avg_loss = total_loss / loss_count if loss_count > 0 else 0
             profit_factor = (
-                total_profit / total_loss if total_loss > 0 else float("inf")
+                total_profit / total_loss if total_loss > 0 else (0 if total_profit == 0 else float("inf"))
             )
 
             # Calculate trade durations
@@ -147,7 +147,8 @@ class TradeMetricsCollector:
                             exit_time.replace("Z", "+00:00")
                         )
                         duration = (exit_dt - entry_dt).total_seconds()
-                        durations.append(duration)
+                        if duration is not None:
+                            durations.append(duration)
                     except (ValueError, TypeError):
                         pass
 
@@ -163,12 +164,15 @@ class TradeMetricsCollector:
                 self.historical_trades, key=lambda x: x.get("exit_time", "")
             ):
                 profit = trade.get("profit", 0)
+                if profit is None:
+                    profit = 0
+                    
                 running_equity += profit
                 equity_curve.append(running_equity)
 
                 if running_equity > peak:
                     peak = running_equity
-                else:
+                elif peak > 0:  # Only calculate drawdown if peak is positive
                     drawdown = peak - running_equity
                     max_drawdown = max(max_drawdown, drawdown)
 

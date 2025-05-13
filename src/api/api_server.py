@@ -37,9 +37,6 @@ app.add_middleware(
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-# Global system exporter instance
-system_exporter = None
-
 # Authentication dependency
 async def get_api_key(api_key_header: str = Security(api_key_header)):
     """
@@ -73,13 +70,13 @@ async def get_system_exporter():
     Raises:
         HTTPException: If system exporter is not initialized
     """
-    if system_exporter is None:
+    if not hasattr(app.state, "system_exporter") or app.state.system_exporter is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="System exporter not initialized",
         )
     
-    return system_exporter
+    return app.state.system_exporter
 
 # Models for API responses
 class HealthResponse(BaseModel):
@@ -89,6 +86,23 @@ class HealthResponse(BaseModel):
     timestamp: int = Field(..., description="Current timestamp")
 
 # API routes
+@app.get("/", include_in_schema=False)
+async def root():
+    """
+    Root endpoint - provides basic API information
+    
+    Returns:
+        Basic API information
+    """
+    return {
+        "name": "GH200 Trading System API",
+        "version": app.version,
+        "description": "REST API for GH200 Trading System metrics and data",
+        "documentation_url": "/docs",
+        "status": "online",
+        "timestamp": int(time.time())
+    }
+
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
     """
@@ -411,10 +425,8 @@ def start_api_server(config: Dict[str, Any], exporter_instance: SystemExporter):
         config: Configuration dictionary
         exporter_instance: System exporter instance
     """
-    global system_exporter
-    
-    # Set system exporter instance
-    system_exporter = exporter_instance
+    # Set system exporter instance in app state
+    app.state.system_exporter = exporter_instance
     
     # Set config
     app.state.config = config

@@ -16,7 +16,7 @@ from typing import Dict, Any
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 # Import modules
-from config.config_loader import load_config
+from config.config_loader import get_config
 from src.monitoring.system_exporter import SystemExporter
 from src.api.api_server import app
 from src.api.ngrok_tunnel import start_ngrok_tunnel
@@ -57,7 +57,7 @@ def main():
     args = parser.parse_args()
     
     # Load config
-    config = load_config(args.config)
+    config = get_config()
     
     # Add API key to config if not present
     if "api_key" not in config:

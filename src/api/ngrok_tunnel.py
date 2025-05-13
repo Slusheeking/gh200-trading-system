@@ -8,7 +8,39 @@ import time
 import logging
 import subprocess
 import requests
-from typing import Optional
+from typing import Optional, Tuple
+
+def check_existing_tunnel(api_key: str, tunnel_name: str) -> Tuple[bool, Optional[str]]:
+    """
+    Check if a tunnel with the given name already exists
+    
+    Args:
+        api_key: Ngrok API key
+        tunnel_name: Name of the tunnel to check
+        
+    Returns:
+        Tuple of (exists, url) where exists is True if the tunnel exists, and url is the tunnel URL if it exists
+    """
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Ngrok-Version": "2"
+    }
+    
+    try:
+        # Check ngrok API for existing tunnels
+        response = requests.get("https://api.ngrok.com/tunnels", headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            for tunnel in data.get("tunnels", []):
+                if tunnel.get("name") == tunnel_name and tunnel.get("proto") == "https":
+                    tunnel_url = tunnel.get("public_url")
+                    logging.info(f"Found existing tunnel '{tunnel_name}': {tunnel_url}")
+                    return True, tunnel_url
+        
+        return False, None
+    except Exception as e:
+        logging.error(f"Error checking existing tunnels: {str(e)}")
+        return False, None
 
 def start_ngrok_tunnel(port: int = 8000) -> Optional[str]:
     """
@@ -23,8 +55,14 @@ def start_ngrok_tunnel(port: int = 8000) -> Optional[str]:
     # Ngrok auth token and API key
     auth_token = "2vB4mEpkOKCPryJJTqcnQZu17mU_2mHUjAc8Gp4egYp8iDVRJ"
     api_key = "2vB4tKLZnRJTMvPr9lw46ELUTyr_qBaN5g6Eti66dN3m4LTJ"
+    tunnel_name = "gh200-trading-system"
     
     try:
+        # First check if a tunnel with our name already exists
+        exists, tunnel_url = check_existing_tunnel(api_key, tunnel_name)
+        if exists and tunnel_url:
+            logging.info(f"Reusing existing ngrok tunnel: {tunnel_url}")
+            return tunnel_url
         # Check if ngrok is installed
         try:
             subprocess.run(["ngrok", "version"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -36,9 +74,11 @@ def start_ngrok_tunnel(port: int = 8000) -> Optional[str]:
         subprocess.run(["ngrok", "config", "add-authtoken", auth_token], check=True, 
                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
-        # Start ngrok tunnel
+        # Use a reserved domain with paid ngrok account ($10/month)
+        # This ensures the endpoint URL stays static across restarts
+        domain = "inavvi.ngrok.io"
         ngrok_process = subprocess.Popen(
-            ["ngrok", "http", f"localhost:{port}", "--log=stdout"],
+            ["ngrok", "http", f"localhost:{port}", "--log=stdout", "--name", tunnel_name, "--domain", domain],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
@@ -72,13 +112,21 @@ def start_ngrok_tunnel(port: int = 8000) -> Optional[str]:
             "Ngrok-Version": "2"
         }
         
+        # Check if our named tunnel already exists
+        tunnel_name = "gh200-trading-system"
         response = requests.get("https://api.ngrok.com/tunnels", headers=headers)
         if response.status_code == 200:
             data = response.json()
             for tunnel in data.get("tunnels", []):
-                if tunnel.get("proto") == "https":
+                # If we find our named tunnel, return its URL
+                if tunnel.get("name") == tunnel_name and tunnel.get("proto") == "https":
                     tunnel_url = tunnel.get("public_url")
-                    logging.info(f"Ngrok tunnel started: {tunnel_url}")
+                    logging.info(f"Using existing ngrok tunnel: {tunnel_url}")
+                    return tunnel_url
+                # Otherwise, return any HTTPS tunnel
+                elif tunnel.get("proto") == "https":
+                    tunnel_url = tunnel.get("public_url")
+                    logging.info(f"Using existing ngrok tunnel: {tunnel_url}")
                     return tunnel_url
         
         logging.error("Failed to get tunnel URL")
