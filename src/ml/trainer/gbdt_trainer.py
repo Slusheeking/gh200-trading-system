@@ -249,12 +249,12 @@ class GBDTTrainer(ModelTrainer):
                 symbol_features.append(symbol_data.get("avg_volume", 0))
                 symbol_features.append(symbol_data.get("volume_acceleration", 0))
                 symbol_features.append(symbol_data.get("volume_spike", 0))
-                symbol_features.append(symbol_data.get("price_change_5m", 0))
+                # Removed price_change_5m from features to prevent data leakage
                 symbol_features.append(symbol_data.get("momentum_1m", 0))
                 symbol_features.append(symbol_data.get("sma_cross_signal", 0))
                 
                 # Generate synthetic label for training
-                # In a real implementation, this would use actual labels
+                # This uses price_change_5m as the target variable, not as a feature
                 price_change = symbol_data.get("price_change_5m", 0)
                 label = 1 if price_change > 0.005 else 0
                 
@@ -278,7 +278,8 @@ class GBDTTrainer(ModelTrainer):
                 "rsi_14", "macd", "macd_signal", "macd_histogram",
                 "bb_upper", "bb_middle", "bb_lower", "atr",
                 "avg_volume", "volume_acceleration", "volume_spike",
-                "price_change_5m", "momentum_1m", "sma_cross_signal"
+                # Removed price_change_5m from feature names
+                "momentum_1m", "sma_cross_signal"
             ]
         
         # Create LightGBM dataset
