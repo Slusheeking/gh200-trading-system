@@ -216,6 +216,9 @@ class DataManager:
                     
                     self.logger.debug(f"Using cached {timespan} bars for {symbol}")
                     
+                    self.logger.debug(f"Using cached {timespan} bars for {symbol} from {start_dt} to {end_dt}. Cache covers {cache_start} to {cache_end}")
+                    if df.index.max() > end_dt:
+                        self.logger.warning(f"Cached data for {symbol} contains future data. Cache end: {cache_end}, requested end: {end_dt}")
                     return df
                 except Exception as e:
                     self.logger.error(f"Error loading cached bars for {symbol}: {str(e)}")
@@ -616,7 +619,7 @@ class DataManager:
                 for symbol in snapshot["symbols"]:
                     # Recalculate indicators using only data available up to this point
                     self._calculate_point_in_time_indicators(snapshot["symbols"][symbol], symbol, date_str)
-            
+            self.logger.debug(f"Adding snapshot for {date_str} to GBDT dataset")
             snapshots.append(snapshot)
             dates.append(date_str)
         
@@ -830,23 +833,40 @@ class DataManager:
             end_date = date_str
             
             # Fetch historical bars for this symbol
-            historical_bars = self.fetch_historical_bars(
+            historical_data = self.fetch_historical_bars(
                 [symbol],
                 start_date=start_date,
                 end_date=end_date,
                 timespan="day"
-            ).get(symbol)
+            )
+            self.logger.debug(f"Historical data dates: {historical_data.get(symbol).index.min()} to {historical_data.get(symbol).index.max()}")
+            # Check if we got data for this symbol
+            if symbol not in historical_data:
+                self.logger.warning(f"No historical data found for {symbol} on {date_str}")
+                return
+                
+            historical_bars = historical_data.get(symbol)
             
-            if historical_bars is None or len(historical_bars) < 14:
+            # Check if historical_bars is a DataFrame and has enough data
+            if historical_bars is None or not isinstance(historical_bars, pd.DataFrame) or len(historical_bars) < 14:
                 self.logger.warning(f"Not enough historical data for {symbol} on {date_str} to calculate indicators")
                 return
             
             # Extract price data
+            if 'close' not in historical_bars.columns or 'high' not in historical_bars.columns or 'low' not in historical_bars.columns or 'volume' not in historical_bars.columns:
+                self.logger.warning(f"Missing required columns in historical data for {symbol}")
+                return
+                
             closes = historical_bars['close'].values
             highs = historical_bars['high'].values
             lows = historical_bars['low'].values
             volumes = historical_bars['volume'].values
             
+            # Ensure we have arrays, not single values
+            if not isinstance(closes, np.ndarray) or len(closes) == 0:
+                self.logger.warning(f"Invalid close data for {symbol}: {type(closes)}")
+                return
+                
             # Calculate RSI using only historical data up to this point
             symbol_data['rsi_14'] = self._calculate_rsi(closes, 14)
             
@@ -886,12 +906,25 @@ class DataManager:
     
     def _calculate_rsi(self, prices: np.ndarray, window: int = 14) -> float:
         """Calculate RSI indicator."""
+        # Check if prices is a valid array with sufficient length
+        if not isinstance(prices, np.ndarray):
+            return 50.0  # Default value if not an array
+            
+        # Convert to numpy array if it's a list
+        if isinstance(prices, list):
+            prices = np.array(prices)
+            
+        # Check if we have enough data
         if len(prices) <= window:
             return 50.0  # Default value if not enough data
             
         # Calculate price changes
         deltas = np.diff(prices)
         
+        # Check if deltas is valid
+        if len(deltas) == 0:
+            return 50.0
+            
         # Calculate gains and losses
         gains = np.copy(deltas)
         losses = np.copy(deltas)
@@ -913,120 +946,230 @@ class DataManager:
     
     def _calculate_macd(self, prices: np.ndarray, fast: int = 12, slow: int = 26, signal: int = 9) -> Tuple[float, float, float]:
         """Calculate MACD indicator."""
+        # Check if prices is a valid array
+        if not isinstance(prices, np.ndarray):
+            return 0.0, 0.0, 0.0  # Default values if not an array
+            
+        # Convert to numpy array if it's a list
+        if isinstance(prices, list):
+            prices = np.array(prices)
+            
+        # Check if we have enough data
         if len(prices) <= slow:
             return 0.0, 0.0, 0.0  # Default values if not enough data
             
-        # Calculate EMAs
-        ema_fast = self._calculate_ema(prices, fast)
-        ema_slow = self._calculate_ema(prices, slow)
-        
-        # Calculate MACD line
-        macd_line = ema_fast - ema_slow
-        
-        # Calculate signal line
-        signal_line = self._calculate_ema(np.append(np.zeros(len(prices) - len(macd_line)), macd_line), signal)
-        
-        # Calculate histogram
-        histogram = macd_line - signal_line
-        
-        return float(macd_line), float(signal_line), float(histogram)
+        try:
+            # Calculate EMAs
+            ema_fast = self._calculate_ema(prices, fast)
+            ema_slow = self._calculate_ema(prices, slow)
+            
+            # Calculate MACD line
+            macd_line = ema_fast - ema_slow
+            
+            # Calculate signal line
+            signal_line = self._calculate_ema(np.append(np.zeros(len(prices) - 1), macd_line), signal)
+            
+            # Calculate histogram
+            histogram = macd_line - signal_line
+            
+            return float(macd_line), float(signal_line), float(histogram)
+        except Exception as e:
+            self.logger.warning(f"Error calculating MACD: {str(e)}")
+            return 0.0, 0.0, 0.0
     
     def _calculate_ema(self, prices: np.ndarray, window: int) -> float:
         """Calculate EMA."""
+        # Check if prices is a valid array
+        if not isinstance(prices, np.ndarray):
+            return 0.0  # Default value if not an array
+            
+        # Convert to numpy array if it's a list
+        if isinstance(prices, list):
+            prices = np.array(prices)
+            
+        # Check if we have enough data
+        if len(prices) == 0:
+            return 0.0
+            
         if len(prices) <= window:
             return float(np.mean(prices))
             
-        weights = np.exp(np.linspace(-1., 0., window))
-        weights /= weights.sum()
-        
-        ema = np.convolve(prices, weights, mode='full')[:len(prices)]
-        ema[:window] = ema[window]
-        
-        return float(ema[-1])
+        try:
+            weights = np.exp(np.linspace(-1., 0., window))
+            weights /= weights.sum()
+            
+            ema = np.convolve(prices, weights, mode='full')[:len(prices)]
+            ema[:window] = ema[window]
+            
+            return float(ema[-1])
+        except Exception as e:
+            self.logger.warning(f"Error calculating EMA: {str(e)}")
+            return float(np.mean(prices))
     
     def _calculate_bollinger_bands(self, prices: np.ndarray, window: int = 20, num_std: float = 2.0) -> Tuple[float, float, float]:
         """Calculate Bollinger Bands."""
-        if len(prices) <= window:
-            return float(prices[-1] * 1.1), float(prices[-1]), float(prices[-1] * 0.9)  # Default values if not enough data
+        # Check if prices is a valid array
+        if not isinstance(prices, np.ndarray):
+            return 100.0, 50.0, 0.0  # Default values if not an array
             
-        # Calculate middle band (SMA)
-        middle = np.mean(prices[-window:])
-        
-        # Calculate standard deviation
-        std = np.std(prices[-window:])
-        
-        # Calculate upper and lower bands
-        upper = middle + (std * num_std)
-        lower = middle - (std * num_std)
-        
-        return float(upper), float(middle), float(lower)
+        # Convert to numpy array if it's a list
+        if isinstance(prices, list):
+            prices = np.array(prices)
+            
+        # Check if we have enough data
+        if len(prices) == 0:
+            return 100.0, 50.0, 0.0
+            
+        if len(prices) <= window:
+            last_price = float(prices[-1]) if len(prices) > 0 else 50.0
+            return float(last_price * 1.1), float(last_price), float(last_price * 0.9)  # Default values if not enough data
+            
+        try:
+            # Calculate middle band (SMA)
+            middle = np.mean(prices[-window:])
+            
+            # Calculate standard deviation
+            std = np.std(prices[-window:])
+            
+            # Calculate upper and lower bands
+            upper = middle + (std * num_std)
+            lower = middle - (std * num_std)
+            
+            return float(upper), float(middle), float(lower)
+        except Exception as e:
+            self.logger.warning(f"Error calculating Bollinger Bands: {str(e)}")
+            last_price = float(prices[-1]) if len(prices) > 0 else 50.0
+            return float(last_price * 1.1), float(last_price), float(last_price * 0.9)
     
     def _calculate_atr(self, highs: np.ndarray, lows: np.ndarray, closes: np.ndarray, window: int = 14) -> float:
         """Calculate Average True Range."""
-        if len(highs) <= window:
-            return float((highs[-1] - lows[-1]) / 2)  # Default value if not enough data
+        # Check if inputs are valid arrays
+        if not isinstance(highs, np.ndarray) or not isinstance(lows, np.ndarray) or not isinstance(closes, np.ndarray):
+            return 1.0  # Default value if not arrays
             
-        # Calculate true ranges
-        tr1 = highs[1:] - lows[1:]  # Current high - current low
-        tr2 = np.abs(highs[1:] - closes[:-1])  # Current high - previous close
-        tr3 = np.abs(lows[1:] - closes[:-1])  # Current low - previous close
-        
-        # True range is the maximum of the three
-        tr = np.maximum(np.maximum(tr1, tr2), tr3)
-        
-        # Calculate ATR
-        atr = np.mean(tr[-window:])
-        
-        return float(atr)
+        # Convert to numpy arrays if they're lists
+        if isinstance(highs, list):
+            highs = np.array(highs)
+        if isinstance(lows, list):
+            lows = np.array(lows)
+        if isinstance(closes, list):
+            closes = np.array(closes)
+            
+        # Check if we have enough data
+        if len(highs) == 0 or len(lows) == 0 or len(closes) == 0:
+            return 1.0
+            
+        if len(highs) <= window or len(lows) <= window or len(closes) <= window:
+            if len(highs) > 0 and len(lows) > 0:
+                return float((highs[-1] - lows[-1]) / 2)  # Default value if not enough data
+            else:
+                return 1.0
+                
+        try:
+            # Calculate true ranges
+            tr1 = highs[1:] - lows[1:]  # Current high - current low
+            tr2 = np.abs(highs[1:] - closes[:-1])  # Current high - previous close
+            tr3 = np.abs(lows[1:] - closes[:-1])  # Current low - previous close
+            
+            # True range is the maximum of the three
+            tr = np.maximum(np.maximum(tr1, tr2), tr3)
+            
+            # Calculate ATR
+            atr = np.mean(tr[-window:])
+            
+            return float(atr)
+        except Exception as e:
+            self.logger.warning(f"Error calculating ATR: {str(e)}")
+            if len(highs) > 0 and len(lows) > 0:
+                return float((highs[-1] - lows[-1]) / 2)
+            else:
+                return 1.0
     
     def _calculate_acceleration(self, values: np.ndarray, window: int = 5) -> float:
         """Calculate acceleration (second derivative)."""
+        # Check if values is a valid array
+        if not isinstance(values, np.ndarray):
+            return 0.0  # Default value if not an array
+            
+        # Convert to numpy array if it's a list
+        if isinstance(values, list):
+            values = np.array(values)
+            
+        # Check if we have enough data
         if len(values) <= window * 2:
             return 0.0  # Default value if not enough data
             
-        # Calculate first derivative (velocity)
-        velocity = np.diff(values)
-        
-        # Calculate second derivative (acceleration)
-        acceleration = np.diff(velocity)
-        
-        # Return average recent acceleration
-        return float(np.mean(acceleration[-window:]))
+        try:
+            # Calculate first derivative (velocity)
+            velocity = np.diff(values)
+            
+            # Check if we have enough data after first diff
+            if len(velocity) <= window:
+                return 0.0
+                
+            # Calculate second derivative (acceleration)
+            acceleration = np.diff(velocity)
+            
+            # Check if we have enough data after second diff
+            if len(acceleration) == 0:
+                return 0.0
+                
+            # Return average recent acceleration
+            return float(np.mean(acceleration[-window:]))
+        except Exception as e:
+            self.logger.warning(f"Error calculating acceleration: {str(e)}")
+            return 0.0
     
     def _calculate_sma_cross(self, prices: np.ndarray, fast: int = 10, slow: int = 30) -> float:
         """Calculate SMA cross signal."""
+        # Check if prices is a valid array
+        if not isinstance(prices, np.ndarray):
+            return 0.0  # Default value if not an array
+            
+        # Convert to numpy array if it's a list
+        if isinstance(prices, list):
+            prices = np.array(prices)
+            
+        # Check if we have enough data
+        if len(prices) == 0:
+            return 0.0
+            
         if len(prices) <= slow:
             return 0.0  # Default value if not enough data
             
-        # Calculate fast and slow SMAs
-        sma_fast = np.mean(prices[-fast:])
-        sma_slow = np.mean(prices[-slow:])
-        
-        # Calculate previous fast and slow SMAs
-        if len(prices) > fast + 1:
-            prev_sma_fast = np.mean(prices[-(fast+1):-1])
-        else:
-            prev_sma_fast = sma_fast
+        try:
+            # Calculate fast and slow SMAs
+            sma_fast = np.mean(prices[-fast:])
+            sma_slow = np.mean(prices[-slow:])
             
-        if len(prices) > slow + 1:
-            prev_sma_slow = np.mean(prices[-(slow+1):-1])
-        else:
-            prev_sma_slow = sma_slow
-        
-        # Calculate cross signal
-        current_diff = sma_fast - sma_slow
-        prev_diff = prev_sma_fast - prev_sma_slow
-        
-        # Normalize to -1 to 1 range
-        if current_diff > 0 and prev_diff < 0:
-            # Bullish cross (fast crosses above slow)
-            return 1.0
-        elif current_diff < 0 and prev_diff > 0:
-            # Bearish cross (fast crosses below slow)
-            return -1.0
-        else:
-            # No cross, return normalized difference
-            return float(current_diff / (sma_slow * 0.1) if sma_slow > 0 else 0)
+            # Calculate previous fast and slow SMAs
+            if len(prices) > fast + 1:
+                prev_sma_fast = np.mean(prices[-(fast+1):-1])
+            else:
+                prev_sma_fast = sma_fast
+                
+            if len(prices) > slow + 1:
+                prev_sma_slow = np.mean(prices[-(slow+1):-1])
+            else:
+                prev_sma_slow = sma_slow
+            
+            # Calculate cross signal
+            current_diff = sma_fast - sma_slow
+            prev_diff = prev_sma_fast - prev_sma_slow
+            
+            # Normalize to -1 to 1 range
+            if current_diff > 0 and prev_diff < 0:
+                # Bullish cross (fast crosses above slow)
+                return 1.0
+            elif current_diff < 0 and prev_diff > 0:
+                # Bearish cross (fast crosses below slow)
+                return -1.0
+            else:
+                # No cross, return normalized difference
+                return float(current_diff / (sma_slow * 0.1) if sma_slow > 0 else 0)
+        except Exception as e:
+            self.logger.warning(f"Error calculating SMA cross: {str(e)}")
+            return 0.0
     
     def _validate_no_data_leakage(self, train_data: Dict[str, Any], test_data: Dict[str, Any],
                                 model_type: str, start_date: str, train_end_date: str,

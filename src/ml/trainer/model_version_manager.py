@@ -309,7 +309,7 @@ class ModelVersionManager:
         # Sort versions by semver
         model_registry["versions"] = sorted(
             model_registry["versions"],
-            key=lambda v: semver.parse(v["version"]),
+            key=lambda v: semver.VersionInfo.parse(v["version"]),
             reverse=True
         )
         

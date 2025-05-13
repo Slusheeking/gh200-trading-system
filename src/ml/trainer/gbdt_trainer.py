@@ -73,6 +73,9 @@ class GBDTTrainer(ModelTrainer):
         """
         self.logger.info("Building GBDT model")
         
+        # Check if GPU is available
+        use_gpu = self.training_config.get("use_gpu", True)
+        
         # Create LightGBM parameters
         params = {
             'objective': self.objective,
@@ -86,6 +89,23 @@ class GBDTTrainer(ModelTrainer):
             'num_threads': self.training_config.get("num_threads", 4),
             'verbose': -1
         }
+        
+        # Add GPU parameters if enabled
+        if use_gpu:
+            try:
+                # Check if GPU is available in LightGBM
+                if 'gpu_platform_id' in lgb.LGBMRegressor().get_params():
+                    self.logger.info("Enabling GPU acceleration for LightGBM")
+                    params.update({
+                        'device': 'gpu',
+                        'gpu_platform_id': 0,
+                        'gpu_device_id': 0,
+                        'gpu_use_dp': False,  # Use double precision for better accuracy
+                    })
+                else:
+                    self.logger.warning("LightGBM was not built with GPU support. Using CPU instead.")
+            except Exception as e:
+                self.logger.warning(f"Error configuring GPU for LightGBM: {str(e)}. Using CPU instead.")
         
         self.logger.info(f"Built GBDT model with parameters: {params}")
         
@@ -129,15 +149,32 @@ class GBDTTrainer(ModelTrainer):
         
         # Train model
         evals_result = {}
-        self.model = lgb.train(
-            params,
-            lgb_train,
-            num_boost_round=self.num_boost_round,
-            valid_sets=[lgb_train, lgb_valid] if lgb_valid is not None else [lgb_train],
-            valid_names=['train', 'valid'] if lgb_valid is not None else ['train'],
-            callbacks=callbacks,
-            evals_result=evals_result
-        )
+        
+        # Check if the LightGBM version supports evals_result
+        import inspect
+        train_params = inspect.signature(lgb.train).parameters
+        
+        if 'evals_result' in train_params:
+            self.model = lgb.train(
+                params,
+                lgb_train,
+                num_boost_round=self.num_boost_round,
+                valid_sets=[lgb_train, lgb_valid] if lgb_valid is not None else [lgb_train],
+                valid_names=['train', 'valid'] if lgb_valid is not None else ['train'],
+                callbacks=callbacks,
+                evals_result=evals_result
+            )
+        else:
+            # Older version of LightGBM that doesn't support evals_result
+            self.logger.warning("LightGBM version doesn't support evals_result, training without it")
+            self.model = lgb.train(
+                params,
+                lgb_train,
+                num_boost_round=self.num_boost_round,
+                valid_sets=[lgb_train, lgb_valid] if lgb_valid is not None else [lgb_train],
+                valid_names=['train', 'valid'] if lgb_valid is not None else ['train'],
+                callbacks=callbacks
+            )
         
         # End timing
         training_time = self.latency_profiler.end_phase()
@@ -152,9 +189,12 @@ class GBDTTrainer(ModelTrainer):
         history = {
             "training_time_ms": training_time,
             "num_iterations": self.model.current_iteration(),
-            "feature_importance": feature_importance,
-            "evals_result": evals_result
+            "feature_importance": feature_importance
         }
+        
+        # Add evals_result if available
+        if evals_result:
+            history["evals_result"] = evals_result
         
         self.logger.info(f"Completed GBDT training in {training_time:.2f} ms "
                        f"with {self.model.current_iteration()} iterations")

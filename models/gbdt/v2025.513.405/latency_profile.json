@@ -1,0 +1,21 @@
+{
+  "training_latency": {
+    "training_ms": {
+      "count": 1,
+      "mean": 202.1009922027588,
+      "min": 202.1009922027588,
+      "max": 202.1009922027588,
+      "std": 0.0,
+      "p50": 202.1009922027588,
+      "p95": 202.1009922027588,
+      "p99": 202.1009922027588
+    }
+  },
+  "inference_latency": {},
+  "timestamp": 1747109186.921462,
+  "hardware_info": {
+    "cpu": "Unknown",
+    "gpu": "NVIDIA GH200",
+    "memory": "Unknown"
+  }
+}

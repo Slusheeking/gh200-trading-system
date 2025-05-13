@@ -229,11 +229,18 @@ class ModelTrainer(ABC):
         # Save model if version is provided
         if version is not None:
             self.logger.info(f"Saving model as version {version}")
-
-            # Set as active if requested
-            if set_as_active:
-                self.logger.info(f"Setting version {version} as active")
-                self.version_manager.set_active_version(self.model_type, version)
+            # Save the model first
+            try:
+                model_dir = self.save(version)
+                self.logger.info(f"Successfully saved model to {model_dir}")
+                
+                # Set as active if requested
+                if set_as_active:
+                    self.logger.info(f"Setting version {version} as active")
+                    self.version_manager.set_active_version(self.model_type, version)
+            except Exception as e:
+                self.logger.error(f"Error saving model: {str(e)}")
+                raise
 
         # End timing
         self.latency_profiler.end_phase()

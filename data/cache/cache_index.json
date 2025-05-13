@@ -1,0 +1,1293 @@
+{
+  "trades": {},
+  "quotes": {},
+  "bars": {
+    "STOCK1": {
+      "day": {
+        "path": "data/cache/bars/STOCK1/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.472498"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK1/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:26.326887"
+      }
+    },
+    "STOCK2": {
+      "day": {
+        "path": "data/cache/bars/STOCK2/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.477326"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK2/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:27.192716"
+      }
+    },
+    "STOCK3": {
+      "day": {
+        "path": "data/cache/bars/STOCK3/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.482191"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK3/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:28.066933"
+      }
+    },
+    "STOCK4": {
+      "day": {
+        "path": "data/cache/bars/STOCK4/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.487028"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK4/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:28.936510"
+      }
+    },
+    "STOCK5": {
+      "day": {
+        "path": "data/cache/bars/STOCK5/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.491768"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK5/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:29.701670"
+      }
+    },
+    "STOCK6": {
+      "day": {
+        "path": "data/cache/bars/STOCK6/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.496486"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK6/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:30.544633"
+      }
+    },
+    "STOCK7": {
+      "day": {
+        "path": "data/cache/bars/STOCK7/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.501284"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK7/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:31.389192"
+      }
+    },
+    "STOCK8": {
+      "day": {
+        "path": "data/cache/bars/STOCK8/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.506150"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK8/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:32.152708"
+      }
+    },
+    "STOCK9": {
+      "day": {
+        "path": "data/cache/bars/STOCK9/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.510929"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK9/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:32.998901"
+      }
+    },
+    "STOCK10": {
+      "day": {
+        "path": "data/cache/bars/STOCK10/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.515651"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK10/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:33.850209"
+      }
+    },
+    "STOCK11": {
+      "day": {
+        "path": "data/cache/bars/STOCK11/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.520435"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK11/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:34.703491"
+      }
+    },
+    "STOCK12": {
+      "day": {
+        "path": "data/cache/bars/STOCK12/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.525224"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK12/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:35.464726"
+      }
+    },
+    "STOCK13": {
+      "day": {
+        "path": "data/cache/bars/STOCK13/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.530128"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK13/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:36.319123"
+      }
+    },
+    "STOCK14": {
+      "day": {
+        "path": "data/cache/bars/STOCK14/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.534907"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK14/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:37.189232"
+      }
+    },
+    "STOCK15": {
+      "day": {
+        "path": "data/cache/bars/STOCK15/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.539614"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK15/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:38.039149"
+      }
+    },
+    "STOCK16": {
+      "day": {
+        "path": "data/cache/bars/STOCK16/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.544323"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK16/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:38.888589"
+      }
+    },
+    "STOCK17": {
+      "day": {
+        "path": "data/cache/bars/STOCK17/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.549060"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK17/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:39.649352"
+      }
+    },
+    "STOCK18": {
+      "day": {
+        "path": "data/cache/bars/STOCK18/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.553781"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK18/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:40.490906"
+      }
+    },
+    "STOCK19": {
+      "day": {
+        "path": "data/cache/bars/STOCK19/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.558490"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK19/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:41.249507"
+      }
+    },
+    "STOCK20": {
+      "day": {
+        "path": "data/cache/bars/STOCK20/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.563338"
+      },
+      "minute": {
+        "path": "data/cache/bars/STOCK20/minute.parquet",
+        "start_date": "2025-02-12T00:00:00",
+        "end_date": "2025-04-24T00:00:00",
+        "updated_at": "2025-05-13T04:04:42.105122"
+      }
+    },
+    "STOCK21": {
+      "day": {
+        "path": "data/cache/bars/STOCK21/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.568254"
+      }
+    },
+    "STOCK22": {
+      "day": {
+        "path": "data/cache/bars/STOCK22/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.573080"
+      }
+    },
+    "STOCK23": {
+      "day": {
+        "path": "data/cache/bars/STOCK23/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.577809"
+      }
+    },
+    "STOCK24": {
+      "day": {
+        "path": "data/cache/bars/STOCK24/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.582501"
+      }
+    },
+    "STOCK25": {
+      "day": {
+        "path": "data/cache/bars/STOCK25/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.587300"
+      }
+    },
+    "STOCK26": {
+      "day": {
+        "path": "data/cache/bars/STOCK26/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.592097"
+      }
+    },
+    "STOCK27": {
+      "day": {
+        "path": "data/cache/bars/STOCK27/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.596820"
+      }
+    },
+    "STOCK28": {
+      "day": {
+        "path": "data/cache/bars/STOCK28/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.601536"
+      }
+    },
+    "STOCK29": {
+      "day": {
+        "path": "data/cache/bars/STOCK29/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.606373"
+      }
+    },
+    "STOCK30": {
+      "day": {
+        "path": "data/cache/bars/STOCK30/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.611171"
+      }
+    },
+    "STOCK31": {
+      "day": {
+        "path": "data/cache/bars/STOCK31/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.615934"
+      }
+    },
+    "STOCK32": {
+      "day": {
+        "path": "data/cache/bars/STOCK32/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.620685"
+      }
+    },
+    "STOCK33": {
+      "day": {
+        "path": "data/cache/bars/STOCK33/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.625550"
+      }
+    },
+    "STOCK34": {
+      "day": {
+        "path": "data/cache/bars/STOCK34/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.630354"
+      }
+    },
+    "STOCK35": {
+      "day": {
+        "path": "data/cache/bars/STOCK35/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.635156"
+      }
+    },
+    "STOCK36": {
+      "day": {
+        "path": "data/cache/bars/STOCK36/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.639948"
+      }
+    },
+    "STOCK37": {
+      "day": {
+        "path": "data/cache/bars/STOCK37/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.644660"
+      }
+    },
+    "STOCK38": {
+      "day": {
+        "path": "data/cache/bars/STOCK38/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.649389"
+      }
+    },
+    "STOCK39": {
+      "day": {
+        "path": "data/cache/bars/STOCK39/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.654142"
+      }
+    },
+    "STOCK40": {
+      "day": {
+        "path": "data/cache/bars/STOCK40/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.658914"
+      }
+    },
+    "STOCK41": {
+      "day": {
+        "path": "data/cache/bars/STOCK41/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.663658"
+      }
+    },
+    "STOCK42": {
+      "day": {
+        "path": "data/cache/bars/STOCK42/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.668380"
+      }
+    },
+    "STOCK43": {
+      "day": {
+        "path": "data/cache/bars/STOCK43/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.673182"
+      }
+    },
+    "STOCK44": {
+      "day": {
+        "path": "data/cache/bars/STOCK44/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.677953"
+      }
+    },
+    "STOCK45": {
+      "day": {
+        "path": "data/cache/bars/STOCK45/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.682699"
+      }
+    },
+    "STOCK46": {
+      "day": {
+        "path": "data/cache/bars/STOCK46/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.687376"
+      }
+    },
+    "STOCK47": {
+      "day": {
+        "path": "data/cache/bars/STOCK47/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.692314"
+      }
+    },
+    "STOCK48": {
+      "day": {
+        "path": "data/cache/bars/STOCK48/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.697146"
+      }
+    },
+    "STOCK49": {
+      "day": {
+        "path": "data/cache/bars/STOCK49/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.701920"
+      }
+    },
+    "STOCK50": {
+      "day": {
+        "path": "data/cache/bars/STOCK50/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.706701"
+      }
+    },
+    "STOCK51": {
+      "day": {
+        "path": "data/cache/bars/STOCK51/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.711476"
+      }
+    },
+    "STOCK52": {
+      "day": {
+        "path": "data/cache/bars/STOCK52/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.716276"
+      }
+    },
+    "STOCK53": {
+      "day": {
+        "path": "data/cache/bars/STOCK53/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.721164"
+      }
+    },
+    "STOCK54": {
+      "day": {
+        "path": "data/cache/bars/STOCK54/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.726010"
+      }
+    },
+    "STOCK55": {
+      "day": {
+        "path": "data/cache/bars/STOCK55/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.730787"
+      }
+    },
+    "STOCK56": {
+      "day": {
+        "path": "data/cache/bars/STOCK56/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.735543"
+      }
+    },
+    "STOCK57": {
+      "day": {
+        "path": "data/cache/bars/STOCK57/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.740331"
+      }
+    },
+    "STOCK58": {
+      "day": {
+        "path": "data/cache/bars/STOCK58/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.745208"
+      }
+    },
+    "STOCK59": {
+      "day": {
+        "path": "data/cache/bars/STOCK59/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.750029"
+      }
+    },
+    "STOCK60": {
+      "day": {
+        "path": "data/cache/bars/STOCK60/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.754800"
+      }
+    },
+    "STOCK61": {
+      "day": {
+        "path": "data/cache/bars/STOCK61/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.759549"
+      }
+    },
+    "STOCK62": {
+      "day": {
+        "path": "data/cache/bars/STOCK62/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.764384"
+      }
+    },
+    "STOCK63": {
+      "day": {
+        "path": "data/cache/bars/STOCK63/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.769171"
+      }
+    },
+    "STOCK64": {
+      "day": {
+        "path": "data/cache/bars/STOCK64/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.773901"
+      }
+    },
+    "STOCK65": {
+      "day": {
+        "path": "data/cache/bars/STOCK65/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.778622"
+      }
+    },
+    "STOCK66": {
+      "day": {
+        "path": "data/cache/bars/STOCK66/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.783371"
+      }
+    },
+    "STOCK67": {
+      "day": {
+        "path": "data/cache/bars/STOCK67/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.788194"
+      }
+    },
+    "STOCK68": {
+      "day": {
+        "path": "data/cache/bars/STOCK68/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.792984"
+      }
+    },
+    "STOCK69": {
+      "day": {
+        "path": "data/cache/bars/STOCK69/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.797675"
+      }
+    },
+    "STOCK70": {
+      "day": {
+        "path": "data/cache/bars/STOCK70/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.802399"
+      }
+    },
+    "STOCK71": {
+      "day": {
+        "path": "data/cache/bars/STOCK71/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.807195"
+      }
+    },
+    "STOCK72": {
+      "day": {
+        "path": "data/cache/bars/STOCK72/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.811973"
+      }
+    },
+    "STOCK73": {
+      "day": {
+        "path": "data/cache/bars/STOCK73/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.816799"
+      }
+    },
+    "STOCK74": {
+      "day": {
+        "path": "data/cache/bars/STOCK74/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.821525"
+      }
+    },
+    "STOCK75": {
+      "day": {
+        "path": "data/cache/bars/STOCK75/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.826358"
+      }
+    },
+    "STOCK76": {
+      "day": {
+        "path": "data/cache/bars/STOCK76/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.831358"
+      }
+    },
+    "STOCK77": {
+      "day": {
+        "path": "data/cache/bars/STOCK77/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.836153"
+      }
+    },
+    "STOCK78": {
+      "day": {
+        "path": "data/cache/bars/STOCK78/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.840874"
+      }
+    },
+    "STOCK79": {
+      "day": {
+        "path": "data/cache/bars/STOCK79/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.845593"
+      }
+    },
+    "STOCK80": {
+      "day": {
+        "path": "data/cache/bars/STOCK80/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.850365"
+      }
+    },
+    "STOCK81": {
+      "day": {
+        "path": "data/cache/bars/STOCK81/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.855212"
+      }
+    },
+    "STOCK82": {
+      "day": {
+        "path": "data/cache/bars/STOCK82/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.859972"
+      }
+    },
+    "STOCK83": {
+      "day": {
+        "path": "data/cache/bars/STOCK83/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.864718"
+      }
+    },
+    "STOCK84": {
+      "day": {
+        "path": "data/cache/bars/STOCK84/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.869488"
+      }
+    },
+    "STOCK85": {
+      "day": {
+        "path": "data/cache/bars/STOCK85/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.874321"
+      }
+    },
+    "STOCK86": {
+      "day": {
+        "path": "data/cache/bars/STOCK86/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.879169"
+      }
+    },
+    "STOCK87": {
+      "day": {
+        "path": "data/cache/bars/STOCK87/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.884014"
+      }
+    },
+    "STOCK88": {
+      "day": {
+        "path": "data/cache/bars/STOCK88/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.888730"
+      }
+    },
+    "STOCK89": {
+      "day": {
+        "path": "data/cache/bars/STOCK89/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.893516"
+      }
+    },
+    "STOCK90": {
+      "day": {
+        "path": "data/cache/bars/STOCK90/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.898375"
+      }
+    },
+    "STOCK91": {
+      "day": {
+        "path": "data/cache/bars/STOCK91/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.903151"
+      }
+    },
+    "STOCK92": {
+      "day": {
+        "path": "data/cache/bars/STOCK92/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.907895"
+      }
+    },
+    "STOCK93": {
+      "day": {
+        "path": "data/cache/bars/STOCK93/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.912714"
+      }
+    },
+    "STOCK94": {
+      "day": {
+        "path": "data/cache/bars/STOCK94/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.917495"
+      }
+    },
+    "STOCK95": {
+      "day": {
+        "path": "data/cache/bars/STOCK95/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.922342"
+      }
+    },
+    "STOCK96": {
+      "day": {
+        "path": "data/cache/bars/STOCK96/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.927178"
+      }
+    },
+    "STOCK97": {
+      "day": {
+        "path": "data/cache/bars/STOCK97/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.931947"
+      }
+    },
+    "STOCK98": {
+      "day": {
+        "path": "data/cache/bars/STOCK98/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.936648"
+      }
+    },
+    "STOCK99": {
+      "day": {
+        "path": "data/cache/bars/STOCK99/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.941420"
+      }
+    },
+    "STOCK100": {
+      "day": {
+        "path": "data/cache/bars/STOCK100/day.parquet",
+        "start_date": "2025-04-13T00:00:00",
+        "end_date": "2025-05-13T00:00:00",
+        "updated_at": "2025-05-13T04:16:27.946210"
+      }
+    }
+  },
+  "snapshots": {
+    "2025-02-12": {
+      "path": "data/cache/snapshots/2025-02-12.json",
+      "updated_at": "2025-05-13T04:03:43.067925"
+    },
+    "2025-02-13": {
+      "path": "data/cache/snapshots/2025-02-13.json",
+      "updated_at": "2025-05-13T04:03:43.456882"
+    },
+    "2025-02-14": {
+      "path": "data/cache/snapshots/2025-02-14.json",
+      "updated_at": "2025-05-13T04:03:43.917943"
+    },
+    "2025-02-15": {
+      "path": "data/cache/snapshots/2025-02-15.json",
+      "updated_at": "2025-05-13T04:03:44.376198"
+    },
+    "2025-02-16": {
+      "path": "data/cache/snapshots/2025-02-16.json",
+      "updated_at": "2025-05-13T04:03:44.834450"
+    },
+    "2025-02-17": {
+      "path": "data/cache/snapshots/2025-02-17.json",
+      "updated_at": "2025-05-13T04:03:45.294232"
+    },
+    "2025-02-18": {
+      "path": "data/cache/snapshots/2025-02-18.json",
+      "updated_at": "2025-05-13T04:03:45.751833"
+    },
+    "2025-02-19": {
+      "path": "data/cache/snapshots/2025-02-19.json",
+      "updated_at": "2025-05-13T04:03:46.204883"
+    },
+    "2025-02-20": {
+      "path": "data/cache/snapshots/2025-02-20.json",
+      "updated_at": "2025-05-13T04:03:46.655824"
+    },
+    "2025-02-21": {
+      "path": "data/cache/snapshots/2025-02-21.json",
+      "updated_at": "2025-05-13T04:03:47.109798"
+    },
+    "2025-02-22": {
+      "path": "data/cache/snapshots/2025-02-22.json",
+      "updated_at": "2025-05-13T04:03:47.561569"
+    },
+    "2025-02-23": {
+      "path": "data/cache/snapshots/2025-02-23.json",
+      "updated_at": "2025-05-13T04:03:48.009369"
+    },
+    "2025-02-24": {
+      "path": "data/cache/snapshots/2025-02-24.json",
+      "updated_at": "2025-05-13T04:03:48.456524"
+    },
+    "2025-02-25": {
+      "path": "data/cache/snapshots/2025-02-25.json",
+      "updated_at": "2025-05-13T04:03:48.903460"
+    },
+    "2025-02-26": {
+      "path": "data/cache/snapshots/2025-02-26.json",
+      "updated_at": "2025-05-13T04:03:49.351142"
+    },
+    "2025-02-27": {
+      "path": "data/cache/snapshots/2025-02-27.json",
+      "updated_at": "2025-05-13T04:03:49.802515"
+    },
+    "2025-02-28": {
+      "path": "data/cache/snapshots/2025-02-28.json",
+      "updated_at": "2025-05-13T04:03:50.255978"
+    },
+    "2025-03-01": {
+      "path": "data/cache/snapshots/2025-03-01.json",
+      "updated_at": "2025-05-13T04:03:50.709630"
+    },
+    "2025-03-02": {
+      "path": "data/cache/snapshots/2025-03-02.json",
+      "updated_at": "2025-05-13T04:03:51.161162"
+    },
+    "2025-03-03": {
+      "path": "data/cache/snapshots/2025-03-03.json",
+      "updated_at": "2025-05-13T04:03:51.614384"
+    },
+    "2025-03-04": {
+      "path": "data/cache/snapshots/2025-03-04.json",
+      "updated_at": "2025-05-13T04:03:52.071223"
+    },
+    "2025-03-05": {
+      "path": "data/cache/snapshots/2025-03-05.json",
+      "updated_at": "2025-05-13T04:03:52.527519"
+    },
+    "2025-03-06": {
+      "path": "data/cache/snapshots/2025-03-06.json",
+      "updated_at": "2025-05-13T04:03:52.982741"
+    },
+    "2025-03-07": {
+      "path": "data/cache/snapshots/2025-03-07.json",
+      "updated_at": "2025-05-13T04:03:53.444778"
+    },
+    "2025-03-08": {
+      "path": "data/cache/snapshots/2025-03-08.json",
+      "updated_at": "2025-05-13T04:03:53.905934"
+    },
+    "2025-03-09": {
+      "path": "data/cache/snapshots/2025-03-09.json",
+      "updated_at": "2025-05-13T04:03:54.364324"
+    },
+    "2025-03-10": {
+      "path": "data/cache/snapshots/2025-03-10.json",
+      "updated_at": "2025-05-13T04:03:54.829743"
+    },
+    "2025-03-11": {
+      "path": "data/cache/snapshots/2025-03-11.json",
+      "updated_at": "2025-05-13T04:03:55.286546"
+    },
+    "2025-03-12": {
+      "path": "data/cache/snapshots/2025-03-12.json",
+      "updated_at": "2025-05-13T04:03:55.744477"
+    },
+    "2025-03-13": {
+      "path": "data/cache/snapshots/2025-03-13.json",
+      "updated_at": "2025-05-13T04:03:56.201185"
+    },
+    "2025-03-14": {
+      "path": "data/cache/snapshots/2025-03-14.json",
+      "updated_at": "2025-05-13T04:03:56.658796"
+    },
+    "2025-03-15": {
+      "path": "data/cache/snapshots/2025-03-15.json",
+      "updated_at": "2025-05-13T04:03:57.123016"
+    },
+    "2025-03-16": {
+      "path": "data/cache/snapshots/2025-03-16.json",
+      "updated_at": "2025-05-13T04:03:57.581353"
+    },
+    "2025-03-17": {
+      "path": "data/cache/snapshots/2025-03-17.json",
+      "updated_at": "2025-05-13T04:03:58.041583"
+    },
+    "2025-03-18": {
+      "path": "data/cache/snapshots/2025-03-18.json",
+      "updated_at": "2025-05-13T04:03:58.496684"
+    },
+    "2025-03-19": {
+      "path": "data/cache/snapshots/2025-03-19.json",
+      "updated_at": "2025-05-13T04:03:58.952592"
+    },
+    "2025-03-20": {
+      "path": "data/cache/snapshots/2025-03-20.json",
+      "updated_at": "2025-05-13T04:03:59.411419"
+    },
+    "2025-03-21": {
+      "path": "data/cache/snapshots/2025-03-21.json",
+      "updated_at": "2025-05-13T04:03:59.875061"
+    },
+    "2025-03-22": {
+      "path": "data/cache/snapshots/2025-03-22.json",
+      "updated_at": "2025-05-13T04:04:00.333963"
+    },
+    "2025-03-23": {
+      "path": "data/cache/snapshots/2025-03-23.json",
+      "updated_at": "2025-05-13T04:04:00.795440"
+    },
+    "2025-03-24": {
+      "path": "data/cache/snapshots/2025-03-24.json",
+      "updated_at": "2025-05-13T04:04:01.254357"
+    },
+    "2025-03-25": {
+      "path": "data/cache/snapshots/2025-03-25.json",
+      "updated_at": "2025-05-13T04:04:01.716488"
+    },
+    "2025-03-26": {
+      "path": "data/cache/snapshots/2025-03-26.json",
+      "updated_at": "2025-05-13T04:04:02.179352"
+    },
+    "2025-03-27": {
+      "path": "data/cache/snapshots/2025-03-27.json",
+      "updated_at": "2025-05-13T04:04:02.653557"
+    },
+    "2025-03-28": {
+      "path": "data/cache/snapshots/2025-03-28.json",
+      "updated_at": "2025-05-13T04:04:03.117868"
+    },
+    "2025-03-29": {
+      "path": "data/cache/snapshots/2025-03-29.json",
+      "updated_at": "2025-05-13T04:04:03.578932"
+    },
+    "2025-03-30": {
+      "path": "data/cache/snapshots/2025-03-30.json",
+      "updated_at": "2025-05-13T04:04:04.038180"
+    },
+    "2025-03-31": {
+      "path": "data/cache/snapshots/2025-03-31.json",
+      "updated_at": "2025-05-13T04:04:04.497400"
+    },
+    "2025-04-01": {
+      "path": "data/cache/snapshots/2025-04-01.json",
+      "updated_at": "2025-05-13T04:04:04.952813"
+    },
+    "2025-04-02": {
+      "path": "data/cache/snapshots/2025-04-02.json",
+      "updated_at": "2025-05-13T04:04:05.413742"
+    },
+    "2025-04-03": {
+      "path": "data/cache/snapshots/2025-04-03.json",
+      "updated_at": "2025-05-13T04:04:05.877391"
+    },
+    "2025-04-04": {
+      "path": "data/cache/snapshots/2025-04-04.json",
+      "updated_at": "2025-05-13T04:04:06.342289"
+    },
+    "2025-04-05": {
+      "path": "data/cache/snapshots/2025-04-05.json",
+      "updated_at": "2025-05-13T04:04:06.806370"
+    },
+    "2025-04-06": {
+      "path": "data/cache/snapshots/2025-04-06.json",
+      "updated_at": "2025-05-13T04:04:07.277275"
+    },
+    "2025-04-07": {
+      "path": "data/cache/snapshots/2025-04-07.json",
+      "updated_at": "2025-05-13T04:04:07.746359"
+    },
+    "2025-04-08": {
+      "path": "data/cache/snapshots/2025-04-08.json",
+      "updated_at": "2025-05-13T04:04:08.213571"
+    },
+    "2025-04-09": {
+      "path": "data/cache/snapshots/2025-04-09.json",
+      "updated_at": "2025-05-13T04:04:08.681966"
+    },
+    "2025-04-10": {
+      "path": "data/cache/snapshots/2025-04-10.json",
+      "updated_at": "2025-05-13T04:04:09.149908"
+    },
+    "2025-04-11": {
+      "path": "data/cache/snapshots/2025-04-11.json",
+      "updated_at": "2025-05-13T04:04:09.619188"
+    },
+    "2025-04-12": {
+      "path": "data/cache/snapshots/2025-04-12.json",
+      "updated_at": "2025-05-13T04:04:10.087234"
+    },
+    "2025-04-13": {
+      "path": "data/cache/snapshots/2025-04-13.json",
+      "updated_at": "2025-05-13T04:04:10.551355"
+    },
+    "2025-04-14": {
+      "path": "data/cache/snapshots/2025-04-14.json",
+      "updated_at": "2025-05-13T04:04:11.020414"
+    },
+    "2025-04-15": {
+      "path": "data/cache/snapshots/2025-04-15.json",
+      "updated_at": "2025-05-13T04:04:11.492472"
+    },
+    "2025-04-16": {
+      "path": "data/cache/snapshots/2025-04-16.json",
+      "updated_at": "2025-05-13T04:04:11.964355"
+    },
+    "2025-04-17": {
+      "path": "data/cache/snapshots/2025-04-17.json",
+      "updated_at": "2025-05-13T04:04:12.439974"
+    },
+    "2025-04-18": {
+      "path": "data/cache/snapshots/2025-04-18.json",
+      "updated_at": "2025-05-13T04:04:12.911539"
+    },
+    "2025-04-19": {
+      "path": "data/cache/snapshots/2025-04-19.json",
+      "updated_at": "2025-05-13T04:04:13.381827"
+    },
+    "2025-04-20": {
+      "path": "data/cache/snapshots/2025-04-20.json",
+      "updated_at": "2025-05-13T04:04:13.852832"
+    },
+    "2025-04-21": {
+      "path": "data/cache/snapshots/2025-04-21.json",
+      "updated_at": "2025-05-13T04:04:14.323164"
+    },
+    "2025-04-22": {
+      "path": "data/cache/snapshots/2025-04-22.json",
+      "updated_at": "2025-05-13T04:04:14.794035"
+    },
+    "2025-04-23": {
+      "path": "data/cache/snapshots/2025-04-23.json",
+      "updated_at": "2025-05-13T04:04:15.265388"
+    },
+    "2025-04-24": {
+      "path": "data/cache/snapshots/2025-04-24.json",
+      "updated_at": "2025-05-13T04:04:15.739670"
+    },
+    "2025-04-25": {
+      "path": "data/cache/snapshots/2025-04-25.json",
+      "updated_at": "2025-05-13T04:04:16.215627"
+    },
+    "2025-04-26": {
+      "path": "data/cache/snapshots/2025-04-26.json",
+      "updated_at": "2025-05-13T04:04:16.687912"
+    },
+    "2025-04-27": {
+      "path": "data/cache/snapshots/2025-04-27.json",
+      "updated_at": "2025-05-13T04:04:17.154164"
+    },
+    "2025-04-28": {
+      "path": "data/cache/snapshots/2025-04-28.json",
+      "updated_at": "2025-05-13T04:04:17.622835"
+    },
+    "2025-04-29": {
+      "path": "data/cache/snapshots/2025-04-29.json",
+      "updated_at": "2025-05-13T04:04:18.092533"
+    },
+    "2025-04-30": {
+      "path": "data/cache/snapshots/2025-04-30.json",
+      "updated_at": "2025-05-13T04:04:18.560610"
+    },
+    "2025-05-01": {
+      "path": "data/cache/snapshots/2025-05-01.json",
+      "updated_at": "2025-05-13T04:04:19.027376"
+    },
+    "2025-05-02": {
+      "path": "data/cache/snapshots/2025-05-02.json",
+      "updated_at": "2025-05-13T04:04:19.497611"
+    },
+    "2025-05-03": {
+      "path": "data/cache/snapshots/2025-05-03.json",
+      "updated_at": "2025-05-13T04:04:19.967645"
+    },
+    "2025-05-04": {
+      "path": "data/cache/snapshots/2025-05-04.json",
+      "updated_at": "2025-05-13T04:04:20.436843"
+    },
+    "2025-05-05": {
+      "path": "data/cache/snapshots/2025-05-05.json",
+      "updated_at": "2025-05-13T04:04:20.903655"
+    },
+    "2025-05-06": {
+      "path": "data/cache/snapshots/2025-05-06.json",
+      "updated_at": "2025-05-13T04:04:21.369865"
+    },
+    "2025-05-07": {
+      "path": "data/cache/snapshots/2025-05-07.json",
+      "updated_at": "2025-05-13T04:04:21.843706"
+    },
+    "2025-05-08": {
+      "path": "data/cache/snapshots/2025-05-08.json",
+      "updated_at": "2025-05-13T04:04:22.316298"
+    },
+    "2025-05-09": {
+      "path": "data/cache/snapshots/2025-05-09.json",
+      "updated_at": "2025-05-13T04:04:22.789242"
+    },
+    "2025-05-10": {
+      "path": "data/cache/snapshots/2025-05-10.json",
+      "updated_at": "2025-05-13T04:04:23.261303"
+    },
+    "2025-05-11": {
+      "path": "data/cache/snapshots/2025-05-11.json",
+      "updated_at": "2025-05-13T04:04:23.733511"
+    },
+    "2025-05-12": {
+      "path": "data/cache/snapshots/2025-05-12.json",
+      "updated_at": "2025-05-13T04:04:24.203865"
+    },
+    "2025-05-13": {
+      "path": "data/cache/snapshots/2025-05-13.json",
+      "updated_at": "2025-05-13T04:04:24.685383"
+    }
+  },
+  "last_updated": "2025-05-13T04:16:27.946217"
+}
