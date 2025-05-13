@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/ubuntu/gh200-trading-system/_deps/pybind11-subbuild/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

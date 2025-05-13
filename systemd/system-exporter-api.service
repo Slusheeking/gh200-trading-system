@@ -1,0 +1,17 @@
+[Unit]
+Description=GH200 Trading System Exporter API with Ngrok Tunnel
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/gh200-trading-system
+ExecStart=/home/ubuntu/gh200-trading-system/start_exporter_api.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

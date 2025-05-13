@@ -1,0 +1,22 @@
+{
+  "model_type": "lstm_gru",
+  "num_layers": 4,
+  "hidden_size": 256,
+  "bidirectional": true,
+  "attention_enabled": true,
+  "attention_heads": 4,
+  "dropout": 0.15,
+  "batch_size": 64,
+  "num_epochs": 100,
+  "learning_rate": 0.0005,
+  "patience": 15,
+  "use_tensorrt": true,
+  "use_fp16": true,
+  "max_batch_size": 128,
+  "output_size": 3,
+  "model_path": "models/lstm_gru/v1.0.0/model.pt",
+  "sequence_length": 50,
+  "embedding_dim": 128,
+  "use_layer_norm": true,
+  "gradient_clip": 1.0
+}
