@@ -11,6 +11,7 @@ import sys
 import json
 import argparse
 import datetime
+import time
 
 # Add project root to path
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,12 +21,73 @@ sys.path.insert(0, project_root)
 from src.monitoring.log import logging as log
 from config.config_loader import get_config
 from src.ml.trainer.gbdt_trainer import GBDTTrainer
-from config.config_loader import get_config
-from src.ml.trainer.gbdt_trainer import GBDTTrainer
 from src.ml.trainer.axial_attention_trainer import AxialAttentionTrainer
 from src.ml.trainer.lstm_gru_trainer import LSTMGRUTrainer
 from src.ml.trainer.model_version_manager import ModelVersionManager
 
+# Try to import TensorRT
+try:
+    import tensorrt as trt
+    import pycuda.driver as cuda
+    import pycuda.autoinit
+    HAS_TENSORRT = True
+except (ImportError, ValueError, AttributeError) as e:
+    HAS_TENSORRT = False
+    import logging
+    logging.warning(f"TensorRT not available or incompatible: {str(e)}. Falling back to CPU inference.")
+
+
+def initialize_tensorrt(config):
+    """
+    Initialize TensorRT if enabled in configuration.
+    
+    Args:
+        config: Configuration dictionary
+        
+    Returns:
+        True if TensorRT was successfully initialized, False otherwise
+    """
+    logger = log.setup_logger("tensorrt_init")
+    
+    # Check if TensorRT is enabled
+    if not config.get("use_tensorrt", False):
+        logger.info("TensorRT is disabled in configuration")
+        return False
+        
+    # Check if TensorRT is available
+    if not HAS_TENSORRT:
+        logger.warning("TensorRT is not available, falling back to CPU inference")
+        return False
+        
+    try:
+        # Create TensorRT logger
+        trt_logger = trt.Logger(trt.Logger.WARNING)
+        
+        # Log TensorRT version
+        version = trt.__version__
+        logger.info(f"TensorRT version: {version}")
+        
+        # Check available GPU memory
+        free_mem, total_mem = cuda.mem_get_info()
+        free_mem_gb = free_mem / (1024 ** 3)
+        total_mem_gb = total_mem / (1024 ** 3)
+        logger.info(f"GPU memory: {free_mem_gb:.2f} GB free / {total_mem_gb:.2f} GB total")
+        
+        # Create TensorRT cache directory if it doesn't exist
+        tensorrt_cache_path = config.get("export", {}).get("tensorrt_cache_path", "models/trt_cache")
+        os.makedirs(tensorrt_cache_path, exist_ok=True)
+        logger.info(f"TensorRT cache directory: {tensorrt_cache_path}")
+        
+        # Log TensorRT configuration
+        tensorrt_config = config.get("tensorrt", {})
+        logger.info(f"TensorRT configuration: {tensorrt_config}")
+        
+        logger.info("TensorRT initialized successfully")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error initializing TensorRT: {str(e)}")
+        return False
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -70,6 +132,30 @@ def parse_arguments():
         "--no-active",
         action="store_true",
         help="Don't set trained models as active",
+    )
+    
+    parser.add_argument(
+        "--use-all-symbols",
+        action="store_true",
+        help="Use all available symbols (default: use symbols from config)",
+    )
+    
+    parser.add_argument(
+        "--no-tensorrt",
+        action="store_true",
+        help="Disable TensorRT acceleration",
+    )
+    
+    parser.add_argument(
+        "--force-active",
+        action="store_true",
+        help="Force setting models as active even if there's an issue",
+    )
+    
+    parser.add_argument(
+        "--ensure-unique",
+        action="store_true",
+        help="Ensure version is unique by adding microseconds",
     )
     
     return parser.parse_args()
@@ -123,21 +209,37 @@ def get_version(args):
     
     # Generate a version based on current date and time in semver format (MAJOR.MINOR.PATCH)
     now = datetime.datetime.now()
-    # Use year as major version, month+day as minor, hour+minute as patch
+    # Use year as major version, month+day as minor, hour+minute+second as patch
+    # Adding seconds ensures uniqueness even for rapid consecutive runs
     major = now.year
     minor = now.month * 100 + now.day  # Combine month and day (e.g., Jan 15 = 115)
-    patch = now.hour * 100 + now.minute  # Combine hour and minute
+    patch = now.hour * 10000 + now.minute * 100 + now.second  # Include seconds for uniqueness
     
-    return f"{major}.{minor}.{patch}"
+    version = f"{major}.{minor}.{patch}"
+    
+    # Add microseconds to ensure absolute uniqueness if needed
+    if args and getattr(args, 'ensure_unique', False):
+        version = f"{version}.{now.microsecond}"
+    
+    return version
 
 
 def train_gbdt_model(config, start_date, end_date, symbols, version, set_as_active):
-    """Train GBDT model"""
+    """Train GBDT model with TensorRT support"""
     logger = log.setup_logger("train_coordinator")
     logger.info("Training GBDT model")
     
+    # Record start time
+    start_time = time.time()
+    
     # Initialize trainer
     trainer = GBDTTrainer(config)
+    
+    # Log TensorRT status
+    if config.get("use_tensorrt", False):
+        logger.info("TensorRT acceleration is enabled for GBDT model")
+    else:
+        logger.info("TensorRT acceleration is disabled for GBDT model")
     
     # Train and evaluate model
     results = trainer.train_and_evaluate(
@@ -148,20 +250,38 @@ def train_gbdt_model(config, start_date, end_date, symbols, version, set_as_acti
         set_as_active=set_as_active,
     )
     
+    # Calculate training time
+    training_time = time.time() - start_time
+    results["training_time_seconds"] = training_time
+    
     # Log results
-    logger.info(f"GBDT model training completed with version {version}")
+    logger.info(f"GBDT model training completed with version {version} in {training_time:.2f} seconds")
     logger.info(f"Performance metrics: {results['performance']['evaluation']}")
+    
+    # Validate symbol coverage if using all symbols
+    if symbols is None and "symbol_coverage" in results:
+        coverage = results.get("symbol_coverage", {}).get("production_coverage_pct", 0)
+        logger.info(f"Symbol coverage: {coverage:.1f}% of production symbols covered in training")
     
     return results
 
 
 def train_axial_attention_model(config, start_date, end_date, symbols, version, set_as_active):
-    """Train Axial Attention model"""
+    """Train Axial Attention model with TensorRT support"""
     logger = log.setup_logger("train_coordinator")
     logger.info("Training Axial Attention model")
     
+    # Record start time
+    start_time = time.time()
+    
     # Initialize trainer
     trainer = AxialAttentionTrainer(config)
+    
+    # Log TensorRT status
+    if config.get("use_tensorrt", False):
+        logger.info("TensorRT acceleration is enabled for Axial Attention model")
+    else:
+        logger.info("TensorRT acceleration is disabled for Axial Attention model")
     
     # Train and evaluate model
     results = trainer.train_and_evaluate(
@@ -172,20 +292,38 @@ def train_axial_attention_model(config, start_date, end_date, symbols, version, 
         set_as_active=set_as_active,
     )
     
+    # Calculate training time
+    training_time = time.time() - start_time
+    results["training_time_seconds"] = training_time
+    
     # Log results
-    logger.info(f"Axial Attention model training completed with version {version}")
+    logger.info(f"Axial Attention model training completed with version {version} in {training_time:.2f} seconds")
     logger.info(f"Performance metrics: {results['performance']['evaluation']}")
+    
+    # Validate symbol coverage if using all symbols
+    if symbols is None and "symbol_coverage" in results:
+        coverage = results.get("symbol_coverage", {}).get("production_coverage_pct", 0)
+        logger.info(f"Symbol coverage: {coverage:.1f}% of production symbols covered in training")
     
     return results
 
 
 def train_lstm_gru_model(config, start_date, end_date, symbols, version, set_as_active):
-    """Train LSTM/GRU model"""
+    """Train LSTM/GRU model with TensorRT support"""
     logger = log.setup_logger("train_coordinator")
     logger.info("Training LSTM/GRU model")
     
+    # Record start time
+    start_time = time.time()
+    
     # Initialize trainer
     trainer = LSTMGRUTrainer(config)
+    
+    # Log TensorRT status
+    if config.get("use_tensorrt", False):
+        logger.info("TensorRT acceleration is enabled for LSTM/GRU model")
+    else:
+        logger.info("TensorRT acceleration is disabled for LSTM/GRU model")
     
     # Train and evaluate model
     results = trainer.train_and_evaluate(
@@ -196,20 +334,51 @@ def train_lstm_gru_model(config, start_date, end_date, symbols, version, set_as_
         set_as_active=set_as_active,
     )
     
+    # Calculate training time
+    training_time = time.time() - start_time
+    results["training_time_seconds"] = training_time
+    
     # Log results
-    logger.info(f"LSTM/GRU model training completed with version {version}")
+    logger.info(f"LSTM/GRU model training completed with version {version} in {training_time:.2f} seconds")
     logger.info(f"Performance metrics: {results['performance']['evaluation']}")
+    
+    # Validate symbol coverage if using all symbols
+    if symbols is None and "symbol_coverage" in results:
+        coverage = results.get("symbol_coverage", {}).get("production_coverage_pct", 0)
+        logger.info(f"Symbol coverage: {coverage:.1f}% of production symbols covered in training")
     
     return results
 
 
 def save_training_summary(results, version):
-    """Save training summary to file"""
+    """Save training summary to file with enhanced information"""
     logger = log.setup_logger("train_coordinator")
     
     # Create summary directory
     summary_dir = os.path.join("models", "training_summaries")
     os.makedirs(summary_dir, exist_ok=True)
+    
+    # Add system information to results
+    results["system_info"] = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "tensorrt_available": HAS_TENSORRT,
+        "tensorrt_enabled": results.get("tensorrt_enabled", False)
+    }
+    
+    # Add hardware information if TensorRT is enabled
+    if results.get("tensorrt_enabled", False) and HAS_TENSORRT:
+        try:
+            # Get GPU information
+            free_mem, total_mem = cuda.mem_get_info()
+            results["system_info"]["gpu_memory"] = {
+                "free_gb": free_mem / (1024 ** 3),
+                "total_gb": total_mem / (1024 ** 3)
+            }
+            
+            # Get TensorRT version
+            results["system_info"]["tensorrt_version"] = trt.__version__
+        except Exception as e:
+            logger.warning(f"Error getting GPU information: {str(e)}")
     
     # Generate summary file path
     summary_path = os.path.join(summary_dir, f"training_summary_{version}.json")
@@ -218,7 +387,7 @@ def save_training_summary(results, version):
     with open(summary_path, "w") as f:
         json.dump(results, f, indent=2)
         
-    logger.info(f"Training summary saved to {summary_path}")
+    logger.info(f"Enhanced training summary saved to {summary_path}")
 
 
 def main():
@@ -233,18 +402,33 @@ def main():
     # Load configuration
     config = get_config()
     
+    # Update configuration based on command line arguments
+    if args.no_tensorrt:
+        config["use_tensorrt"] = False
+    else:
+        # Initialize TensorRT if enabled
+        tensorrt_initialized = initialize_tensorrt(config)
+        if config.get("use_tensorrt", False) and not tensorrt_initialized:
+            logger.warning("TensorRT initialization failed, falling back to CPU inference")
+            config["use_tensorrt"] = False
+    
     # Get date range
     start_date, end_date = get_date_range(args, config)
     logger.info(f"Training period: {start_date} to {end_date}")
     
     # Get symbols
-    symbols = get_symbols(args, config)
-    if symbols:
-        logger.info(f"Training with symbols: {', '.join(symbols)}")
+    if args.use_all_symbols:
+        logger.info("Using all available symbols for training")
+        symbols = None  # Let the trainer fetch all symbols
     else:
-        logger.info("Training with default symbols")
+        symbols = get_symbols(args, config)
+        if symbols:
+            logger.info(f"Training with symbols: {', '.join(symbols[:10])}... (total: {len(symbols)})")
+        else:
+            logger.info("Training with default symbols")
     
-    # Get version
+    # Get version - always generate a new version based on current timestamp
+    # This ensures each training run gets a unique version
     version = get_version(args)
     logger.info(f"Using version: {version}")
     
@@ -252,9 +436,17 @@ def main():
     models_to_train = args.models.lower().split(",") if args.models != "all" else ["gbdt", "axial_attention", "lstm_gru"]
     logger.info(f"Models to train: {', '.join(models_to_train)}")
     
-    # Set active flag
-    set_as_active = not args.no_active
+    # Set active flag - default to True to ensure models are set as active
+    set_as_active = not args.no_active or args.force_active
+    if args.force_active:
+        logger.info("Force active flag set - models will be set as active regardless of no-active flag")
     logger.info(f"Set as active: {set_as_active}")
+    
+    # Verify the model will be saved and set as active
+    if set_as_active:
+        logger.info(f"Models will be saved with version {version} and set as active")
+    else:
+        logger.warning("Models will be saved but NOT set as active - use with caution")
     
     # Initialize results dictionary
     results = {
@@ -263,6 +455,7 @@ def main():
             "start_date": start_date,
             "end_date": end_date
         },
+        "tensorrt_enabled": config.get("use_tensorrt", False),
         "models": {}
     }
     
@@ -298,11 +491,48 @@ def main():
         # Save training summary
         save_training_summary(results, version)
         
+        # Verify models were saved and set as active
+        if set_as_active:
+            verify_models_active(models_to_train, version)
+        
         logger.info("All model training completed successfully")
         
     except Exception as e:
         logger.error(f"Error during model training: {str(e)}")
+        import traceback
+        logger.error(traceback.format_exc())
         sys.exit(1)
+
+def verify_models_active(models_to_train, expected_version):
+    """Verify that models were saved and set as active"""
+    logger = log.setup_logger("train_coordinator")
+    logger.info(f"Verifying models were saved and set as active with version {expected_version}")
+    
+    # Initialize version manager
+    version_manager = ModelVersionManager()
+    
+    # Check each model
+    all_active = True
+    for model_type in models_to_train:
+        active_version = version_manager.get_active_version(model_type)
+        if active_version == expected_version:
+            logger.info(f"✅ {model_type} model is active with correct version {active_version}")
+        else:
+            logger.error(f"❌ {model_type} model active version is {active_version}, expected {expected_version}")
+            all_active = False
+            
+            # Try to fix it
+            try:
+                logger.info(f"Attempting to set {model_type} model version {expected_version} as active")
+                version_manager.set_active_version(model_type, expected_version)
+                logger.info(f"Successfully set {model_type} model version {expected_version} as active")
+            except Exception as e:
+                logger.error(f"Failed to set {model_type} model version {expected_version} as active: {str(e)}")
+    
+    if all_active:
+        logger.info("All models are active with correct versions")
+    else:
+        logger.warning("Some models are not active with correct versions")
 
 
 if __name__ == "__main__":

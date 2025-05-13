@@ -14,5 +14,5 @@
   "use_fp16": true,
   "max_batch_size": 128,
   "output_size": 3,
-  "model_path": "models/axial_attention/v1.0.0/model.pt"
+  "model_path": "models/axial_attention/v2025.513.429/model.pt"
 }

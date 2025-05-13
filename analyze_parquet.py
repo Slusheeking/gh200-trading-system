@@ -1,16 +1,15 @@
 import pandas as pd
 import glob
-import os
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 def analyze_parquet_files():
     # Get all day and minute parquet files
     day_files = glob.glob('data/cache/bars/*/day.parquet')
     minute_files = glob.glob('data/cache/bars/*/minute.parquet')
     
-    print(f'Number of stocks with day data: {len(day_files)}')
-    print(f'Number of stocks with minute data: {len(minute_files)}')
+    print('Number of stocks with day data: {}'.format(len(day_files)))
+    print('Number of stocks with minute data: {}'.format(len(minute_files)))
     
     # Analyze day files
     print('\nDay data analysis:')
@@ -31,7 +30,7 @@ def analyze_parquet_files():
             
             # Print details for first 5 stocks
             if len(day_row_counts) <= 5:
-                print(f'{stock}: {df.shape[0]} rows, date range: {df.index.min() if not df.empty else "N/A"} to {df.index.max() if not df.empty else "N/A"}')
+                print('{}: {} rows, date range: {} to {}'.format(stock, df.shape[0], df.index.min() if not df.empty else "N/A", df.index.max() if not df.empty else "N/A"))
         except Exception as e:
             print(f'{stock}: Error - {str(e)}')
     
@@ -54,7 +53,7 @@ def analyze_parquet_files():
             
             # Print details for first 5 stocks
             if len(minute_row_counts) <= 5:
-                print(f'{stock}: {df.shape[0]} rows, date range: {df.index.min() if not df.empty else "N/A"} to {df.index.max() if not df.empty else "N/A"}')
+                print('{}: {} rows, date range: {} to {}'.format(stock, df.shape[0], df.index.min() if not df.empty else "N/A", df.index.max() if not df.empty else "N/A"))
         except Exception as e:
             print(f'{stock}: Error - {str(e)}')
     

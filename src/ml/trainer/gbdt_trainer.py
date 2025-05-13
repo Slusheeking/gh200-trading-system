@@ -7,6 +7,8 @@ management for the fast path in the trading system.
 """
 
 import numpy as np
+import os
+import json
 from typing import Dict, List, Any, Optional
 
 # Try to import LightGBM
@@ -17,6 +19,17 @@ except (ImportError, ValueError, AttributeError) as e:
     HAS_LIGHTGBM = False
     import logging
     logging.warning(f"LightGBM not available or incompatible: {str(e)}. GBDT training will not function.")
+
+# Try to import TensorRT
+try:
+    import tensorrt as trt
+    import pycuda.driver as cuda
+    import pycuda.autoinit
+    HAS_TENSORRT = True
+except (ImportError, ValueError, AttributeError) as e:
+    HAS_TENSORRT = False
+    import logging
+    logging.warning(f"TensorRT not available or incompatible: {str(e)}. Falling back to CPU inference.")
 
 from src.ml.trainer.base_trainer import ModelTrainer
 
@@ -59,11 +72,136 @@ class GBDTTrainer(ModelTrainer):
         # Initialize feature names
         self.feature_names = []
         
+        # TensorRT configuration
+        self.use_tensorrt = self.training_config.get("use_tensorrt", True) and HAS_TENSORRT
+        self.tensorrt_fp16 = self.training_config.get("export", {}).get("tensorrt_fp16", True)
+        self.tensorrt_cache_path = self.training_config.get("export", {}).get("tensorrt_cache_path", "models/trt_cache")
+        
+        # Create TensorRT cache directory if it doesn't exist
+        if self.use_tensorrt:
+            os.makedirs(self.tensorrt_cache_path, exist_ok=True)
+            
+        # TensorRT engine and context
+        self.trt_engine = None
+        self.trt_context = None
+        self.trt_input_shape = None
+        self.trt_output_shape = None
+        
         self.logger.info(f"Initialized GBDT trainer with parameters: "
                        f"trees={self.num_trees}, "
                        f"depth={self.max_depth}, "
-                       f"learning_rate={self.learning_rate}")
+                       f"learning_rate={self.learning_rate}, "
+                       f"use_tensorrt={self.use_tensorrt}")
     
+    def train_and_evaluate(self, start_date: str, end_date: str,
+                         symbols: Optional[List[str]] = None,
+                         version: Optional[str] = None,
+                         set_as_active: bool = True) -> Dict[str, Any]:
+        """
+        Train and evaluate the model with enhanced symbol verification.
+        
+        Args:
+            start_date: Start date for training data
+            end_date: End date for training data
+            symbols: List of symbols to include (optional)
+            version: Version to assign to trained model (optional)
+            set_as_active: Whether to set the trained model as active
+            
+        Returns:
+            Dictionary with training and evaluation results
+        """
+        self.logger.info(f"Training and evaluating GBDT model from {start_date} to {end_date}")
+        
+        # Start timing
+        self.latency_profiler.start_phase("train_and_evaluate")
+        
+        # Get training configuration
+        train_test_split = self.training_config.get("train_test_split", 0.8)
+        random_seed = self.training_config.get("random_seed", 42)
+        
+        # Get production symbols for comparison prior to training
+        production_symbols = self._get_production_symbols()
+        
+        # Create training dataset
+        train_data, test_data = self.data_manager.create_training_dataset(
+            self.model_type,
+            start_date,
+            end_date,
+            symbols,
+            train_test_split,
+            random_seed
+        )
+        
+        # Get unique symbols from training data
+        training_symbols = []
+        if self.model_type == "gbdt" and "sample_symbols" in train_data:
+            training_symbols = list(set(train_data["sample_symbols"]))
+        
+        # Validate training vs. production symbol coverage
+        if production_symbols and training_symbols:
+            coverage_metrics = self.data_manager.validate_symbol_coverage(
+                training_symbols, production_symbols)
+                
+            # Add metrics to training metadata
+            self.training_metadata["symbol_coverage"] = coverage_metrics
+            
+            # Log warning if coverage is low
+            if coverage_metrics["production_coverage_pct"] < 90:
+                self.logger.warning(
+                    f"Low symbol coverage: {coverage_metrics['production_coverage_pct']:.1f}% of production symbols covered in training. "
+                    f"This may affect model performance in production."
+                )
+        
+        # Build model architecture
+        self.model = self.build_model()
+        
+        # Train model
+        training_history = self.train(train_data, test_data)
+        
+        # Evaluate model
+        evaluation_metrics = self.evaluate(test_data)
+        
+        # Generate version if not provided
+        if version is None:
+            version = self.version_manager.generate_version()
+            
+        # Save model
+        model_dir = self.save(version)
+        
+        # Set as active if requested
+        if set_as_active:
+            self.version_manager.set_active_version(self.model_type, version)
+            
+        # Create results dictionary
+        results = {
+            "version": version,
+            "model_dir": model_dir,
+            "training": training_history,
+            "performance": {
+                "evaluation": evaluation_metrics
+            }
+        }
+        
+        # Store training metadata
+        self.training_metadata.update({
+            "start_date": start_date,
+            "end_date": end_date,
+            "train_test_split": train_test_split,
+            "random_seed": random_seed,
+            "feature_names": self.feature_names,
+            "feature_importance": self.get_feature_importance()
+        })
+        
+        # Store performance metrics
+        self.performance_metrics.update(evaluation_metrics)
+        
+        # End timing
+        self.latency_profiler.end_phase()
+        
+        self.logger.info(f"GBDT model training and evaluation completed with version {version}")
+        
+        return results
+        
     def build_model(self) -> Dict[str, Any]:
         """
         Build the GBDT model architecture.
@@ -110,6 +248,30 @@ class GBDTTrainer(ModelTrainer):
         self.logger.info(f"Built GBDT model with parameters: {params}")
         
         return params
+    
+    def _get_production_symbols(self) -> List[str]:
+        """
+        Get the list of symbols used in production.
+        
+        Returns:
+            List of production symbols
+        """
+        try:
+            # Try to get the symbol list from a standard location
+            production_symbols_path = os.path.join(self.config.get("data_dir", "data"), "production_symbols.json")
+            
+            if os.path.exists(production_symbols_path):
+                with open(production_symbols_path, 'r') as f:
+                    data = json.load(f)
+                    return data.get("symbols", [])
+            
+            # If file doesn't exist, fallback to API to get current symbols
+            self.logger.info("Production symbols file not found, querying API")
+            return self.data_manager._get_polygon_symbols()
+            
+        except Exception as e:
+            self.logger.error(f"Error getting production symbols: {str(e)}")
+            return []
     
     def train(self, train_data: Dict[str, Any], validation_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -311,8 +473,13 @@ class GBDTTrainer(ModelTrainer):
         X = lgb_test.data
         y = lgb_test.label
         
-        # Make predictions
-        y_pred = self.model.predict(X)
+        # Make predictions - use TensorRT if available
+        if self.use_tensorrt and self.trt_engine is not None and self.trt_context is not None:
+            self.logger.info("Using TensorRT for inference")
+            y_pred = self._tensorrt_inference(X)
+        else:
+            self.logger.info("Using LightGBM for inference")
+            y_pred = self.model.predict(X)
         
         # Calculate metrics
         from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
@@ -338,6 +505,64 @@ class GBDTTrainer(ModelTrainer):
                        f"with metrics: {metrics}")
         
         return metrics
+        
+    def _tensorrt_inference(self, X: np.ndarray) -> np.ndarray:
+        """
+        Run inference using TensorRT engine.
+        
+        Args:
+            X: Input features
+            
+        Returns:
+            Predictions
+        """
+        if not HAS_TENSORRT or self.trt_engine is None or self.trt_context is None:
+            self.logger.warning("TensorRT not available, falling back to LightGBM")
+            return self.model.predict(X)
+            
+        try:
+            # Allocate device memory for inputs and outputs
+            input_shape = X.shape
+            batch_size = input_shape[0]
+            
+            # Allocate output buffer
+            output_size = batch_size
+            output_buffer = np.zeros(output_size, dtype=np.float32)
+            
+            # Allocate device memory
+            d_input = cuda.mem_alloc(X.astype(np.float32).nbytes)
+            d_output = cuda.mem_alloc(output_buffer.nbytes)
+            
+            # Create CUDA stream
+            stream = cuda.Stream()
+            
+            # Copy input data to device
+            cuda.memcpy_htod_async(d_input, X.astype(np.float32), stream)
+            
+            # Set input shape if dynamic
+            if -1 in self.trt_input_shape:
+                self.trt_context.set_binding_shape(0, (batch_size, X.shape[1]))
+                
+            # Run inference
+            bindings = [int(d_input), int(d_output)]
+            self.trt_context.execute_async_v2(bindings=bindings, stream_handle=stream.handle)
+            
+            # Copy output data to host
+            cuda.memcpy_dtoh_async(output_buffer, d_output, stream)
+            
+            # Synchronize stream
+            stream.synchronize()
+            
+            return output_buffer
+            
+        except Exception as e:
+            self.logger.error(f"Error during TensorRT inference: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            
+            # Fall back to LightGBM
+            self.logger.warning("Falling back to LightGBM for inference")
+            return self.model.predict(X)
     
     def save(self, version: str) -> str:
         """
@@ -365,9 +590,169 @@ class GBDTTrainer(ModelTrainer):
             self.latency_profiler.create_latency_profile()
         )
         
+        # Export to TensorRT if enabled
+        if self.use_tensorrt:
+            try:
+                self._export_to_tensorrt(model_dir, version)
+            except Exception as e:
+                self.logger.error(f"Error exporting to TensorRT: {str(e)}")
+                self.logger.error("Continuing without TensorRT export")
+        
         self.logger.info(f"Saved GBDT model version {version} to {model_dir}")
         
         return model_dir
+        
+    def _export_to_tensorrt(self, model_dir: str, version: str) -> None:
+        """
+        Export the trained model to TensorRT format.
+        
+        Args:
+            model_dir: Directory where the model is saved
+            version: Version string
+        """
+        if not HAS_TENSORRT:
+            self.logger.warning("TensorRT not available, skipping export")
+            return
+            
+        self.logger.info(f"Exporting GBDT model to TensorRT format")
+        
+        # Create TensorRT engine file path
+        engine_file = os.path.join(self.tensorrt_cache_path, f"gbdt_{version}.engine")
+        
+        # Create TensorRT logger
+        trt_logger = trt.Logger(trt.Logger.WARNING)
+        
+        try:
+            # Create builder and network
+            builder = trt.Builder(trt_logger)
+            network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+            config = builder.create_builder_config()
+            
+            # Set FP16 mode if enabled
+            if self.tensorrt_fp16:
+                config.set_flag(trt.BuilderFlag.FP16)
+                
+            # Set max workspace size (8GB)
+            config.max_workspace_size = 8 * (1 << 30)
+            
+            # Create ONNX parser
+            parser = trt.OnnxParser(network, trt_logger)
+            
+            # Export LightGBM model to ONNX format first
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.onnx') as tmp:
+                onnx_path = tmp.name
+                self._export_to_onnx(onnx_path)
+                
+                # Parse ONNX file
+                with open(onnx_path, 'rb') as f:
+                    if not parser.parse(f.read()):
+                        for error in range(parser.num_errors):
+                            self.logger.error(f"ONNX parsing error: {parser.get_error(error)}")
+                        raise RuntimeError("Failed to parse ONNX model")
+                
+                # Build engine
+                self.logger.info("Building TensorRT engine (this may take a while)...")
+                engine = builder.build_engine(network, config)
+                if engine is None:
+                    raise RuntimeError("Failed to build TensorRT engine")
+                    
+                # Serialize engine to file
+                with open(engine_file, 'wb') as f:
+                    f.write(engine.serialize())
+                    
+            self.logger.info(f"Successfully exported GBDT model to TensorRT format: {engine_file}")
+            
+            # Initialize TensorRT engine
+            self._initialize_tensorrt(engine_file)
+            
+        except Exception as e:
+            self.logger.error(f"Error exporting to TensorRT: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            
+    def _export_to_onnx(self, onnx_path: str) -> None:
+        """
+        Export LightGBM model to ONNX format.
+        
+        Args:
+            onnx_path: Path to save ONNX model
+        """
+        self.logger.info(f"Exporting LightGBM model to ONNX format: {onnx_path}")
+        
+        try:
+            import onnxmltools
+            from onnxmltools.convert.lightgbm.operator_converters.LightGbm import convert_lightgbm
+            from onnxconverter_common.data_types import FloatTensorType
+            
+            # Define input shape based on feature count
+            input_shape = [None, len(self.feature_names)]
+            
+            # Convert to ONNX
+            onnx_model = convert_lightgbm(
+                self.model,
+                initial_types=[('input', FloatTensorType(input_shape))],
+                target_opset=12
+            )
+            
+            # Save ONNX model
+            onnxmltools.utils.save_model(onnx_model, onnx_path)
+            
+            self.logger.info(f"Successfully exported to ONNX format")
+            
+        except Exception as e:
+            self.logger.error(f"Error exporting to ONNX: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            raise
+            
+    def _initialize_tensorrt(self, engine_file: str) -> None:
+        """
+        Initialize TensorRT engine from file.
+        
+        Args:
+            engine_file: Path to TensorRT engine file
+        """
+        if not HAS_TENSORRT:
+            self.logger.warning("TensorRT not available, skipping initialization")
+            return
+            
+        self.logger.info(f"Initializing TensorRT engine from {engine_file}")
+        
+        try:
+            # Create TensorRT runtime and load engine
+            trt_logger = trt.Logger(trt.Logger.WARNING)
+            runtime = trt.Runtime(trt_logger)
+            
+            with open(engine_file, 'rb') as f:
+                engine_data = f.read()
+                
+            self.trt_engine = runtime.deserialize_cuda_engine(engine_data)
+            if self.trt_engine is None:
+                raise RuntimeError("Failed to deserialize TensorRT engine")
+                
+            # Create execution context
+            self.trt_context = self.trt_engine.create_execution_context()
+            if self.trt_context is None:
+                raise RuntimeError("Failed to create TensorRT execution context")
+                
+            # Get input and output shapes
+            for i in range(self.trt_engine.num_bindings):
+                if self.trt_engine.binding_is_input(i):
+                    self.trt_input_shape = self.trt_context.get_binding_shape(i)
+                    self.logger.info(f"TensorRT input shape: {self.trt_input_shape}")
+                else:
+                    self.trt_output_shape = self.trt_context.get_binding_shape(i)
+                    self.logger.info(f"TensorRT output shape: {self.trt_output_shape}")
+                    
+            self.logger.info("TensorRT engine initialized successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Error initializing TensorRT engine: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            self.trt_engine = None
+            self.trt_context = None
     
     def load(self, version: Optional[str] = None) -> None:
         """

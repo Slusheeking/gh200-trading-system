@@ -317,6 +317,48 @@ class DataManager:
                 
         return True
         
+    def _get_valid_trading_date(self, date_dt: datetime) -> datetime:
+        """
+        Get a valid trading date for data fetching, adjusting to previous trading day if needed.
+        
+        If the provided date is today, in the future, or a non-trading day,
+        this method will return the most recent past trading day.
+        
+        Args:
+            date_dt: The date to validate
+            
+        Returns:
+            A valid past trading date
+        """
+        # Get current date without time component
+        current_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # If date is today or in the future, adjust to previous day
+        adjusted_date = date_dt
+        if adjusted_date >= current_date:
+            adjusted_date = current_date - timedelta(days=1)
+            self.logger.info(f"Adjusting future date {date_dt.strftime('%Y-%m-%d')} to previous day {adjusted_date.strftime('%Y-%m-%d')}")
+        
+        # If adjusted date is still not a trading day, find the most recent trading day
+        if not self._is_trading_day(adjusted_date):
+            original_date = adjusted_date
+            max_lookback = 30  # Avoid infinite loops by limiting lookback
+            lookback_count = 0
+            
+            while not self._is_trading_day(adjusted_date) and lookback_count < max_lookback:
+                adjusted_date = adjusted_date - timedelta(days=1)
+                lookback_count += 1
+                
+            if lookback_count >= max_lookback:
+                self.logger.warning(f"Could not find a valid trading day within {max_lookback} days before {original_date.strftime('%Y-%m-%d')}")
+                # Return the original date as a fallback, even though it's not ideal
+                return original_date
+            
+            if original_date != adjusted_date:
+                self.logger.info(f"Adjusted non-trading day {original_date.strftime('%Y-%m-%d')} to previous trading day {adjusted_date.strftime('%Y-%m-%d')}")
+        
+        return adjusted_date
+
     def _get_trading_days(self, start_dt: datetime, end_dt: datetime) -> List[datetime]:
         """
         Get a list of trading days between start_dt and end_dt.
@@ -639,11 +681,19 @@ class DataManager:
         """
         self.logger.info(f"Fetching market snapshots for {date_dt.strftime('%Y-%m-%d')}")
         
-        # Check if the date is a trading day
-        if not self._is_trading_day(date_dt):
-            self.logger.warning(f"Date {date_dt.strftime('%Y-%m-%d')} is not a trading day (weekend or holiday)")
-            # For non-trading days, return empty snapshots
-            return {"timestamp": date_dt.isoformat(), "symbols": {}}
+        # Get a valid trading date
+        valid_date_dt = self._get_valid_trading_date(date_dt)
+        
+        # If the date is not a trading day, return empty snapshots
+        if not self._is_trading_day(valid_date_dt):
+            self.logger.warning(f"Date {valid_date_dt.strftime('%Y-%m-%d')} is not a trading day (weekend or holiday)")
+            return {"timestamp": valid_date_dt.isoformat(), "symbols": {}}
+        
+        # If the original date was adjusted, log it
+        if valid_date_dt != date_dt:
+            self.logger.info(f"Using market data from {valid_date_dt.strftime('%Y-%m-%d')} instead of requested date {date_dt.strftime('%Y-%m-%d')}")
+            # Update the date_dt to use the valid one for the rest of the function
+            date_dt = valid_date_dt
         
         # Get list of symbols (using default list if API call fails)
         symbols = self._get_polygon_symbols()
@@ -677,55 +727,90 @@ class DataManager:
     
     def _get_polygon_symbols(self) -> List[str]:
         """
-        Get list of symbols from Polygon.io API or use default list.
+        Get list of symbols from Polygon.io API with pagination support.
         
         Returns:
-            List of symbols
+            List of symbols (2000-3000 for production use)
         """
         try:
-            # Build URL for Polygon API
+            # Configuration parameters
             base_url = self.polygon_api.polygon_base_url
             api_key = self.polygon_api.polygon_api_key
+            max_symbols = self.config.get("data_sources", {}).get("polygon", {}).get("max_symbols", 3000)
+            symbols_per_page = 1000  # Maximum for Polygon API
             
-            url = f"{base_url}/v3/reference/tickers"
-            params = {
-                "apiKey": api_key,
-                "market": "stocks",
-                "active": "true",
-                "limit": 100  # Limit to 100 symbols for performance
-            }
+            all_symbols = []
+            page = 1
             
-            # Use the session from polygon_api for consistent retry behavior
-            response = self.polygon_api.session.get(
-                url,
-                params=params,
-                timeout=(self.polygon_api.connect_timeout, self.polygon_api.read_timeout)
-            )
+            # Paginate until we reach the desired number of symbols
+            while len(all_symbols) < max_symbols:
+                url = f"{base_url}/v3/reference/tickers"
+                params = {
+                    "apiKey": api_key,
+                    "market": "stocks",
+                    "active": "true",
+                    "sort": "ticker",  # Sort alphabetically
+                    "order": "asc",    # Ascending order
+                    "limit": symbols_per_page,
+                    "page": page
+                }
+                
+                self.logger.info(f"Fetching symbols page {page} (max symbols: {max_symbols})")
+                
+                # Use the session from polygon_api for consistent retry behavior
+                response = self.polygon_api.session.get(
+                    url,
+                    params=params,
+                    timeout=(self.polygon_api.connect_timeout, self.polygon_api.read_timeout)
+                )
+                
+                # Raise for status
+                response.raise_for_status()
+                
+                # Parse response
+                response_json = json.loads(response.text)
+                
+                # Get results
+                results = response_json.get("results", [])
+                
+                if not results:
+                    self.logger.info(f"No more symbols found after page {page}")
+                    break
+                
+                # Extract symbols
+                page_symbols = [ticker.get("ticker") for ticker in results if ticker.get("ticker")]
+                all_symbols.extend(page_symbols)
+                
+                self.logger.info(f"Fetched {len(page_symbols)} symbols on page {page}, total: {len(all_symbols)}")
+                
+                # Move to next page
+                page += 1
+                
+                # Check if we've reached the last page
+                if len(page_symbols) < symbols_per_page:
+                    break
             
-            # Raise for status
-            response.raise_for_status()
+            # Trim to max symbols if needed
+            if len(all_symbols) > max_symbols:
+                all_symbols = all_symbols[:max_symbols]
             
-            # Parse response
-            response_json = json.loads(response.text)
-            
-            # Get results
-            results = response_json.get("results", [])
-            
-            if not results:
-                self.logger.warning("No symbols returned from Polygon API, using default list")
-                return [f"STOCK{i}" for i in range(1, 101)]
-            
-            # Extract symbols
-            symbols = [ticker.get("ticker") for ticker in results if ticker.get("ticker")]
-            
-            self.logger.info(f"Successfully fetched {len(symbols)} symbols from Polygon API")
-            
-            return symbols
+            self.logger.info(f"Successfully fetched {len(all_symbols)} symbols from Polygon API")
+            return all_symbols
             
         except Exception as e:
             self.logger.error(f"Error fetching symbols from Polygon API: {str(e)}")
-            # Return default list of symbols
-            return [f"STOCK{i}" for i in range(1, 101)]
+            
+            # In case of error, return a synthetic set of symbols
+            # Make sure this covers a broader range than just STOCK1-100
+            synthetic_symbols = []
+            
+            # Generate synthetic symbols using a mix of letter prefixes
+            for prefix in ["A", "B", "C", "G", "M", "N", "S", "T"]:
+                for i in range(1, 376):  # ~3000 symbols total (~375 per letter)
+                    synthetic_symbols.append(f"{prefix}STOCK{i}")
+            
+            self.logger.warning(f"Using {len(synthetic_symbols)} synthetic symbols due to API error")
+            return synthetic_symbols
     
     def _fetch_polygon_symbol_snapshot(self, symbol: str, date_dt: datetime) -> Dict[str, Any]:
         """
@@ -777,8 +862,13 @@ class DataManager:
             quote_json = json.loads(response.text)
             
             # Fetch daily bar
-            # Format date for API
-            date_str = date_dt.strftime("%Y-%m-%d")
+            # Get a valid trading date and format it for the API
+            valid_date_dt = self._get_valid_trading_date(date_dt)
+            date_str = valid_date_dt.strftime("%Y-%m-%d")
+            
+            # If date was adjusted, log it
+            if valid_date_dt != date_dt:
+                self.logger.info(f"Using data from {date_str} for {symbol} instead of {date_dt.strftime('%Y-%m-%d')}")
             
             url = f"{base_url}/v1/open-close/{symbol}/{date_str}"
             
@@ -823,7 +913,11 @@ class DataManager:
             return snapshot
             
         except Exception as e:
-            self.logger.error(f"Error fetching snapshot for {symbol}: {str(e)}")
+            # More informative error message for debugging
+            error_msg = f"Error fetching snapshot for {symbol}: {str(e)}"
+            if "404" in str(e) and date_dt.strftime("%Y-%m-%d") in str(e):
+                error_msg += f" (Data not available for date {date_dt.strftime('%Y-%m-%d')})"
+            self.logger.error(error_msg)
             return {}
     
     def _calculate_technical_indicators(self, symbol: str, snapshot: Dict[str, Any], date_dt: datetime) -> None:
@@ -911,10 +1005,11 @@ class DataManager:
                                train_test_split: float = 0.8,
                                random_seed: int = 42) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
-        Create a training dataset for a specific model type.
+        Create a training dataset for a specific model type with optimized batch processing.
         
         This implementation prevents data leakage by first splitting the time periods,
         then generating features and sequences separately for each period.
+        It also uses batch processing to handle large numbers of symbols efficiently.
         
         Args:
             model_type: Type of model (gbdt, axial_attention, lstm_gru)
@@ -936,6 +1031,15 @@ class DataManager:
         # Set random seed
         np.random.seed(random_seed)
         
+        # If symbols not provided, get all available symbols
+        if symbols is None:
+            symbols = self._get_polygon_symbols()
+            
+            # Log symbol distribution metrics
+            self._log_symbol_distribution_metrics(symbols)
+        
+        self.logger.info(f"Creating dataset with {len(symbols)} symbols")
+        
         # Convert dates to datetime objects
         start_dt = pd.to_datetime(start_date)
         end_dt = pd.to_datetime(end_date)
@@ -955,22 +1059,44 @@ class DataManager:
         self.logger.info(f"Time-based split: Training period {start_date} to {train_end_date}, "
                        f"Testing period {test_start_date} to {end_date}")
         
-        # Create dataset based on model type with clear time separation
-        if model_type == "gbdt":
-            train_data = self._create_gbdt_dataset_period(start_date, train_end_date, symbols)
-            test_data = self._create_gbdt_dataset_period(test_start_date, end_date, symbols)
-        elif model_type == "axial_attention":
-            train_data = self._create_axial_attention_dataset_period(start_date, train_end_date, symbols)
-            test_data = self._create_axial_attention_dataset_period(test_start_date, end_date, symbols)
-        elif model_type == "lstm_gru":
-            train_data = self._create_lstm_gru_dataset_period(start_date, train_end_date, symbols)
-            test_data = self._create_lstm_gru_dataset_period(test_start_date, end_date, symbols)
-        else:
-            raise ValueError(f"Unsupported model type: {model_type}")
+        # Process symbols in batches to avoid memory issues
+        batch_size = self.config.get("data_sources", {}).get("polygon", {}).get("batch_processing", {}).get("batch_size", 500)
+        num_batches = (len(symbols) + batch_size - 1) // batch_size
         
-        # Validate no data leakage between train and test sets
-        self._validate_no_data_leakage(train_data, test_data, model_type, start_date, train_end_date, test_start_date, end_date)
+        train_data_batches = []
+        test_data_batches = []
+        
+        for batch_idx in range(num_batches):
+            batch_start = batch_idx * batch_size
+            batch_end = min((batch_idx + 1) * batch_size, len(symbols))
+            symbol_batch = symbols[batch_start:batch_end]
             
+            self.logger.info(f"Processing batch {batch_idx+1}/{num_batches} ({len(symbol_batch)} symbols)")
+            
+            # Create dataset based on model type with clear time separation
+            if model_type == "gbdt":
+                train_batch = self._create_gbdt_dataset_period(start_date, train_end_date, symbol_batch)
+                test_batch = self._create_gbdt_dataset_period(test_start_date, end_date, symbol_batch)
+            elif model_type == "axial_attention":
+                train_batch = self._create_axial_attention_dataset_period(start_date, train_end_date, symbol_batch)
+                test_batch = self._create_axial_attention_dataset_period(test_start_date, end_date, symbol_batch)
+            elif model_type == "lstm_gru":
+                train_batch = self._create_lstm_gru_dataset_period(start_date, train_end_date, symbol_batch)
+                test_batch = self._create_lstm_gru_dataset_period(test_start_date, end_date, symbol_batch)
+            else:
+                raise ValueError(f"Unsupported model type: {model_type}")
+                
+            train_data_batches.append(train_batch)
+            test_data_batches.append(test_batch)
+            
+            # Validate no data leakage between train and test sets
+            self._validate_no_data_leakage(train_batch, test_batch, model_type,
+                                         start_date, train_end_date, test_start_date, end_date)
+        
+        # Combine batches into final datasets
+        train_data = self._combine_dataset_batches(train_data_batches, model_type)
+        test_data = self._combine_dataset_batches(test_data_batches, model_type)
+        
         # End timing
         self.latency_profiler.end_phase()
         
@@ -1014,7 +1140,9 @@ class DataManager:
         dates = []
 
         for date in date_range:
-            date_str = date.strftime("%Y-%m-%d")
+            # Get valid trading date before fetching snapshot
+            valid_date = self._get_valid_trading_date(date)
+            date_str = valid_date.strftime("%Y-%m-%d")
             snapshot = self.fetch_market_snapshots(date_str)
             # Process technical indicators to ensure they use only past data
             if "symbols" in snapshot and snapshot["symbols"]:
@@ -1825,6 +1953,110 @@ class DataManager:
         
         self.logger.info(f"LSTM/GRU dataset validation: {train_seq_count} training sequences, "
                        f"{test_seq_count} testing sequences")
+    
+    def _log_symbol_distribution_metrics(self, symbols: List[str]) -> None:
+        """
+        Log metrics about the symbol distribution to ensure diversity.
+        
+        Args:
+            symbols: List of symbols
+        """
+        if not symbols:
+            return
+            
+        # Count symbols by first letter
+        letter_counts = {}
+        for symbol in symbols:
+            if symbol and isinstance(symbol, str) and len(symbol) > 0:
+                first_letter = symbol[0].upper()
+                letter_counts[first_letter] = letter_counts.get(first_letter, 0) + 1
+        
+        # Sort by letter
+        sorted_counts = {k: letter_counts[k] for k in sorted(letter_counts.keys())}
+        
+        # Log distribution
+        self.logger.info("Symbol distribution by first letter:")
+        for letter, count in sorted_counts.items():
+            percentage = (count / len(symbols)) * 100
+            self.logger.info(f"  {letter}: {count} symbols ({percentage:.1f}%)")
+        
+        # Log coverage statistics
+        unique_letters = len(letter_counts)
+        self.logger.info(f"Symbol coverage: {unique_letters}/26 letters represented")
+    
+    def validate_symbol_coverage(self, training_symbols: List[str], production_symbols: List[str]) -> Dict[str, Any]:
+        """
+        Validate the coverage of training symbols compared to production symbols.
+        
+        Args:
+            training_symbols: Symbols used in training
+            production_symbols: Symbols used in production
+            
+        Returns:
+            Dictionary with validation metrics
+        """
+        # Convert to sets for efficient comparison
+        train_set = set(training_symbols)
+        prod_set = set(production_symbols)
+        
+        # Basic metrics
+        overlap = train_set.intersection(prod_set)
+        only_in_train = train_set - prod_set
+        only_in_prod = prod_set - train_set
+        
+        # Calculate coverage percentages
+        overlap_count = len(overlap)
+        train_only_count = len(only_in_train)
+        prod_only_count = len(only_in_prod)
+        
+        prod_coverage_pct = (overlap_count / max(1, len(prod_set))) * 100
+        
+        # Letter distribution in training vs production
+        train_first_letters = [s[0] if s and len(s) > 0 else "" for s in training_symbols]
+        prod_first_letters = [s[0] if s and len(s) > 0 else "" for s in production_symbols]
+        
+        train_letter_counts = {}
+        for letter in train_first_letters:
+            if letter:
+                train_letter_counts[letter] = train_letter_counts.get(letter, 0) + 1
+                
+        prod_letter_counts = {}
+        for letter in prod_first_letters:
+            if letter:
+                prod_letter_counts[letter] = prod_letter_counts.get(letter, 0) + 1
+        
+        # Compute distribution similarity
+        letters = sorted(set(train_letter_counts.keys()).union(set(prod_letter_counts.keys())))
+        letter_distribution_diff = {}
+        
+        for letter in letters:
+            train_pct = (train_letter_counts.get(letter, 0) / len(training_symbols)) if training_symbols else 0
+            prod_pct = (prod_letter_counts.get(letter, 0) / len(production_symbols)) if production_symbols else 0
+            letter_distribution_diff[letter] = abs(train_pct - prod_pct) * 100  # Difference in percentage points
+        
+        # Overall distribution similarity (0-100%, higher is better)
+        dist_similarity = 100 - min(100, sum(letter_distribution_diff.values()))
+        
+        # Results
+        result = {
+            "overlap_count": overlap_count,
+            "production_coverage_pct": prod_coverage_pct,
+            "missing_in_train": len(only_in_prod),
+            "distribution_similarity_pct": dist_similarity,
+            "letter_distribution_diff": letter_distribution_diff
+        }
+        
+        # Log results
+        self.logger.info(f"Symbol coverage validation: {prod_coverage_pct:.1f}% of production symbols covered in training")
+        self.logger.info(f"Symbol distribution similarity: {dist_similarity:.1f}%")
+        
+        if prod_coverage_pct < 95:
+            self.logger.warning(f"Low symbol coverage: {prod_coverage_pct:.1f}% - training may not be representative")
+        
+        if dist_similarity < 80:
+            self.logger.warning(f"Symbol distribution differs significantly between training and production")
+            
+        return result
     
     def cleanup(self) -> None:
         """Clean up resources."""

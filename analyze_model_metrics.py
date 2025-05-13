@@ -1,6 +1,5 @@
 import os
 import json
-import glob
 import pandas as pd
 from tabulate import tabulate
 from collections import defaultdict
