@@ -1,0 +1,46 @@
+{
+  "data_sources": {
+    "polygon": {
+      "enabled": true,
+      "api_key": "",
+      "base_url": "https://api.polygon.io",
+      "http": {
+        "retry": {
+          "max_retries": 3,
+          "backoff_factor": 0.3,
+          "status_forcelist": [429, 500, 502, 503, 504]
+        },
+        "timeout": {
+          "connect": 3.0,
+          "read": 10.0,
+          "min_timeout": 1.0,
+          "max_timeout": 15.0,
+          "timeout_percentile": 95
+        }
+      },
+      "rate_limit_threshold": 50
+    }
+  },
+  "trading": {
+    "market": {
+      "min_price": 5.0,
+      "max_price": 500.0,
+      "min_volume": 500000,
+      "min_market_cap": 500000000
+    }
+  },
+  "performance": {
+    "use_gpu": true,
+    "processor_threads": 16,
+    "batch_size": 1000,
+    "max_history_length": 200,
+    "history_cache_size": 1000,
+    "enable_predictive_prefetch": true,
+    "prefetch_interval_seconds": 1.0,
+    "enable_adaptive_timeouts": true,
+    "shared_memory_size_mb": 256,
+    "gpu_device_id": 0,
+    "use_cpu_affinity": true,
+    "data_fetch_core_ids": [0, 1]
+  }
+}

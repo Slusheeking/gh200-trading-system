@@ -1,0 +1,149 @@
+{
+  "system": {
+    "name": "GH200 Trading System",
+    "version": "1.0.0",
+    "environment": "development",
+    "log_level": "info",
+    "timezone": "UTC",
+    "data_directory": "data",
+    "models_directory": "models",
+    "cache_directory": "training_data/cache",
+    "component_configs": {
+      "hft_model": "config/hft_model_settings.json",
+      "polygon_provider": "config/polygon_provider_settings.json",
+      "exit_strategy": "config/fast_exit_strategy_settings.json"
+    }
+  },
+  "api": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 8000,
+    "debug": false,
+    "cors_origins": ["*"],
+    "rate_limit": {
+      "enabled": true,
+      "requests_per_minute": 60
+    },
+    "authentication": {
+      "enabled": false,
+      "api_key_header": "X-API-Key"
+    }
+  },
+  "memory": {
+    "redis": {
+      "enabled": true,
+      "host": "localhost",
+      "port": 6379,
+      "password": "",
+      "db": 0,
+      "expire_seconds": 3600
+    }
+  },
+  "monitoring": {
+    "enabled": true,
+    "metrics_port": 9090,
+    "collect_system_metrics": true,
+    "collect_trading_metrics": true,
+    "alert_thresholds": {
+      "cpu_usage_percent": 90,
+      "memory_usage_percent": 85,
+      "disk_usage_percent": 90,
+      "error_rate_per_minute": 10
+    }
+  },
+  "scheduling": {
+    "market_hours": {
+      "use_calendar": true,
+      "calendar_script": "market_calendar.sh",
+      "default_open": "09:30",
+      "default_close": "16:00",
+      "timezone": "America/New_York",
+      "pre_market_minutes": 60,
+      "post_market_minutes": 60
+    },
+    "data_collection": {
+      "enabled": true,
+      "interval_seconds": 60,
+      "symbols_per_batch": 100,
+      "max_concurrent_batches": 5
+    },
+    "model_training": {
+      "enabled": true,
+      "schedule": "0 0 * * 1-5",
+      "max_training_time_minutes": 120
+    },
+    "model_evaluation": {
+      "enabled": true,
+      "schedule": "0 1 * * 1-5",
+      "backtest_days": 30
+    }
+  },
+  "trading": {
+    "enabled": false,
+    "mode": "paper",
+    "max_positions": 20,
+    "max_position_value": 10000,
+    "max_daily_drawdown_percent": 5,
+    "risk_management": {
+      "max_position_size_percent": 5,
+      "max_concentration_percent": 20,
+      "correlation_threshold": 0.7
+    },
+    "symbols": {
+      "universe": "SP500",
+      "custom_list": [],
+      "exclude_list": [],
+      "min_price": 5.0,
+      "max_price": 500.0,
+      "min_volume": 500000,
+      "min_market_cap": 500000000
+    }
+  },
+  "data_sources": {
+    "primary": "polygon",
+    "backup": "alpaca",
+    "historical": "parquet_files",
+    "config_paths": {
+      "polygon": "config/polygon_provider_settings.json",
+      "alpaca": "config/fast_exit_strategy_settings.json"
+    }
+  },
+  "ml": {
+    "models": {
+      "hft": {
+        "enabled": true,
+        "config_path": "config/hft_model_settings.json",
+        "inference_batch_size": 100,
+        "confidence_threshold": 0.7,
+        "feature_stats_path": "training_data/hft_training/calibration/hft_features_20250513_182658_1709_stats.json"
+      }
+    },
+    "training": {
+      "data_split": {
+        "train": 0.7,
+        "validation": 0.15,
+        "test": 0.15
+      },
+      "hyperparameter_tuning": {
+        "enabled": true,
+        "max_trials": 20
+      }
+    }
+  },
+  "performance": {
+    "hardware": {
+      "use_gpu": true,
+      "gpu_device_id": 0,
+      "cpu_threads": 16,
+      "memory_limit_mb": 8192,
+      "use_cpu_affinity": true
+    },
+    "optimization": {
+      "use_int8": true,
+      "use_fp16": true,
+      "batch_processing": true,
+      "async_processing": true,
+      "prefetch_enabled": true
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "trading": {
+    "exit": {
+      "profit_target_pct": 2.0,
+      "profit_target_scale": 0.5,
+      "stop_loss_pct": 1.0,
+      "stop_loss_scale": 0.5,
+      "trailing_stop_pct": 0.5,
+      "trailing_stop_activation_pct": 0.8,
+      "max_holding_time_minutes": 240,
+      "partial_exit_time_pct": 50.0,
+      "partial_exit_size_pct": 50.0,
+      "enable_time_based_exits": true,
+      "rsi_overbought": 70,
+      "rsi_oversold": 30,
+      "volume_spike_threshold": 2.0,
+      "volatility_multiplier": 1.5,
+      "bb_exit_threshold": 0.9,
+      "enable_volume_filter": true,
+      "volume_filter_threshold": 0.7,
+      "enable_price_rejection": true,
+      "reversal_candle_threshold": 1.5,
+      "max_drawdown_pct": 3.0,
+      "daily_loss_limit_pct": 5.0,
+      "min_profit_target_multiplier": 1.5,
+      "enable_correlation_exits": true,
+      "check_exit_interval_seconds": 10,
+      "max_concurrent_exits": 10,
+      "partial_exit_enabled": true
+    },
+    "bracket": {
+      "profit_target_pct": 2.0,
+      "stop_loss_pct": 1.0,
+      "use_volatility_adjustment": true,
+      "volatility_scaling_factor": 0.5,
+      "min_profit_target_pct": 0.5,
+      "max_profit_target_pct": 5.0,
+      "min_stop_loss_pct": 0.3,
+      "max_stop_loss_pct": 3.0,
+      "min_risk_reward_ratio": 1.5
+    }
+  },
+  "data_sources": {
+    "alpaca": {
+      "enabled": true,
+      "api_key": "",
+      "secret_key": "",
+      "endpoint": "https://paper-api.alpaca.markets/v2",
+      "http": {
+        "retry": {
+          "max_retries": 3,
+          "backoff_factor": 0.3,
+          "status_forcelist": [429, 500, 502, 503, 504]
+        },
+        "timeout": {
+          "connect": 3.0,
+          "read": 10.0
+        }
+      }
+    }
+  },
+  "performance": {
+    "processor_threads": 16,
+    "use_gpu": false
+  }
+}

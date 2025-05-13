@@ -1,0 +1,84 @@
+{
+  "hardware": {
+    "device_type": "cuda",
+    "gpu_device_id": 0,
+    "gh200_optimizations": true,
+    "use_cuda_streams": true,
+    "cuda_stream_count": 4,
+    "use_pinned_memory": true,
+    "use_unified_memory": true,
+    "grace_cpu_offload": true,
+    "gpu_memory_pool_size": 1073741824,
+    "pinned_memory_pool_size": 268435456,
+    "data_fetch_core_ids": [0, 1],
+    "use_cpu_affinity": true
+  },
+  "model": {
+    "num_trees": 100,
+    "num_leaves": 31,
+    "num_boost_round": 100,
+    "objective": "binary",
+    "metric": "auc",
+    "learning_rate": 0.1,
+    "feature_fraction": 0.8,
+    "bagging_fraction": 0.8,
+    "stats_path": "models/feature_stats.json"
+  },
+  "inference": {
+    "use_fp16": true,
+    "use_int8": true,
+    "batch_size": 256,
+    "use_soa_layout": true,
+    "use_channel_quantization": true,
+    "use_treelite": true,
+    "use_tensorrt": true,
+    "trt_workspace_size": 1073741824,
+    "inference_threads": 8
+  },
+  "monitoring": {
+    "enable_metrics": true
+  },
+  "performance": {
+    "use_gpu": true,
+    "processor_threads": 16,
+    "batch_size": 1000,
+    "max_history_length": 200,
+    "history_cache_size": 1000,
+    "enable_predictive_prefetch": true,
+    "prefetch_interval_seconds": 1.0,
+    "enable_adaptive_timeouts": true,
+    "shared_memory_size_mb": 256,
+    "gpu_device_id": 0,
+    "use_cpu_affinity": true
+  },
+  "data_sources": {
+    "polygon": {
+      "enabled": true,
+      "api_key": "",
+      "base_url": "https://api.polygon.io",
+      "http": {
+        "retry": {
+          "max_retries": 3,
+          "backoff_factor": 0.3,
+          "status_forcelist": [429, 500, 502, 503, 504]
+        },
+        "timeout": {
+          "connect": 3.0,
+          "read": 10.0,
+          "min_timeout": 1.0,
+          "max_timeout": 15.0,
+          "timeout_percentile": 95
+        }
+      },
+      "rate_limit_threshold": 50
+    }
+  },
+  "trading": {
+    "market": {
+      "min_price": 5.0,
+      "max_price": 500.0,
+      "min_volume": 500000,
+      "min_market_cap": 500000000
+    }
+  }
+}
