@@ -6,7 +6,14 @@ to provide optimized market data specifically for the HFT model with minimal lat
 """
 
 import os
+import sys
 import time
+from pathlib import Path
+
+# Add project root to Python path to fix import issues
+project_root = Path(__file__).resolve().parents[1]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 import numpy as np
 import logging
 import threading
@@ -45,26 +52,58 @@ except (ImportError, ValueError, AttributeError) as e:
         f"GPU libraries not available or incompatible: {str(e)}. Falling back to CPU processing."
     )
 
-# Import Redis client
-try:
-    from memory.redis_client import RedisClient
+# Add project root to Python path to fix import issues
+import sys
+from pathlib import Path
 
-    HAS_REDIS = True
-except ImportError:
-    HAS_REDIS = False
-    logging.warning("Redis client not available. Redis integration will be disabled.")
+# Add project root to Python path if needed
+project_root = Path(__file__).resolve().parents[1]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Import shared memory components (optional module for GPU memory optimization)
-# Note: This module is not included in the project yet, but the code handles its absence gracefully
-try:
-    from shared_memory.gpu_memory_pool import SharedGPUMemoryPool  # type: ignore # pylance-ignore
+# Set Redis and shared memory flags to disabled
+HAS_REDIS = False
+HAS_SHARED_MEMORY = False
 
-    HAS_SHARED_MEMORY = True
-except ImportError:
-    HAS_SHARED_MEMORY = False
-    logging.warning(
-        "Shared memory components not available. Zero-copy operations will be disabled."
-    )
+# Define dummy class for Redis
+class RedisClient:
+    def __init__(self, config=None):
+        self.initialized = False
+        
+    def initialize(self):
+        return False
+        
+    def get(self, key):
+        return None
+        
+    def set(self, key, value, expiry=None):
+        return False
+        
+    def publish(self, channel, message):
+        return 0
+        
+    def subscribe(self, channel, callback):
+        return False
+
+# Define dummy classes for shared memory
+def get_shared_memory_manager(config=None):
+    return None
+
+class SharedGPUMemoryPool:
+    def __init__(self, *args, **kwargs):
+        pass
+    
+    def allocate(self, *args, **kwargs):
+        return "dummy_id", None
+    
+    def get(self, *args, **kwargs):
+        return None
+    
+    def free(self, *args, **kwargs):
+        return True
+    
+    def cleanup(self):
+        pass
 
 
 @dataclass
@@ -363,19 +402,27 @@ class PolygonMarketDataProvider:
         self.circuit_breaker_engaged = False  # Whether circuit breaker is engaged
         self.circuit_breaker_reset_time = 0  # Time when circuit breaker will reset
 
-        # Shared memory pool for zero-copy operations (new)
-        self.shared_memory_pool = None
-        if HAS_SHARED_MEMORY and self.use_gpu:
+        # Shared memory manager for zero-copy operations
+        self.shared_memory_manager = None
+        if HAS_SHARED_MEMORY:
             try:
-                self.shared_memory_pool = SharedGPUMemoryPool(
-                    initial_size_mb=perf_config.get("shared_memory_size_mb", 256),
-                    device_id=perf_config.get("gpu_device_id", 0),
-                )
+                self.shared_memory_manager = get_shared_memory_manager(config)
                 logging.info(
-                    "Initialized shared GPU memory pool for zero-copy operations"
+                    "Initialized shared memory manager for zero-copy operations"
                 )
+                
+                # Also initialize GPU memory pool if using GPU
+                if self.use_gpu:
+                    self.shared_memory_pool = SharedGPUMemoryPool(
+                        initial_size_mb=perf_config.get("shared_memory_size_mb", 256),
+                        device_id=perf_config.get("gpu_device_id", 0),
+                    )
+                    logging.info(
+                        "Initialized shared GPU memory pool for zero-copy operations"
+                    )
             except Exception as e:
-                logging.error(f"Failed to initialize shared memory pool: {str(e)}")
+                logging.error(f"Failed to initialize shared memory components: {str(e)}")
+                # Removed: HAS_SHARED_MEMORY = False (do not reassign global in local scope)
 
         # Predictive prefetching (new)
         self.enable_predictive_prefetch = perf_config.get(
@@ -449,22 +496,130 @@ class PolygonMarketDataProvider:
     def _initialize_redis(self):
         """
         Initialize Redis client for market data distribution
+        
+        Note: Redis functionality is currently disabled
         """
-        try:
-            # Create Redis client
-            self.redis_client = RedisClient(self.config)
+        logging.info("Redis integration is disabled")
+        self.redis_client = None
 
-            # Initialize client
-            if self.redis_client.initialize():
-                logging.info("Redis client initialized for market data provider")
-            else:
-                logging.warning(
-                    "Failed to initialize Redis client for market data provider"
-                )
-                self.redis_client = None
+    def _set_redis_health_check(self):
+        """
+        Set health check key in Redis
+        """
+        if not self.redis_client:
+            return
+            
+        try:
+            # Set health check key with 60-second expiry
+            self.redis_client.set(
+                "market_data_provider:health",
+                json_fast.dumps({
+                    "status": "healthy",
+                    "timestamp": time.time(),
+                    "version": "1.0.0"
+                }),
+                expiry=60
+            )
+            
+            # Start health check thread
+            health_thread = threading.Thread(
+                target=self._redis_health_check_worker,
+                daemon=True,
+                name="RedisHealthCheck"
+            )
+            health_thread.start()
+            logging.info("Redis health check initialized")
         except Exception as e:
-            logging.error(f"Error initializing Redis client: {str(e)}")
-            self.redis_client = None
+            logging.error(f"Error setting Redis health check: {str(e)}")
+            
+    def _redis_health_check_worker(self):
+        """
+        Worker thread to periodically update health check key
+        """
+        while True:
+            try:
+                # Sleep for 30 seconds
+                time.sleep(30)
+                
+                # Update health check key
+                if self.redis_client:
+                    self.redis_client.set(
+                        "market_data_provider:health",
+                        json_fast.dumps({
+                            "status": "healthy",
+                            "timestamp": time.time(),
+                            "version": "1.0.0",
+                            "stats": {
+                                "symbols_tracked": len(self.indicator_states),
+                                "symbols_prefetched": len([s for s in self.prefetch_symbols.values() if s.symbol and s.probability > 0.2]),
+                                "circuit_breaker_engaged": self.circuit_breaker_engaged
+                            }
+                        }),
+                        expiry=60
+                    )
+            except Exception as e:
+                logging.error(f"Error updating Redis health check: {str(e)}")
+                
+    def _subscribe_to_market_data_requests(self):
+        """
+        Subscribe to market data requests from Redis
+        """
+        if not self.redis_client:
+            return
+            
+        try:
+            # Define callback for market data requests
+            def handle_market_data_request(channel, message):
+                try:
+                    # Parse request
+                    request = json_fast.loads(message)
+                    request_id = request.get("request_id", "unknown")
+                    symbols = request.get("symbols", [])
+                    
+                    if not symbols:
+                        return
+                        
+                    logging.info(f"Received market data request for {len(symbols)} symbols (ID: {request_id})")
+                    
+                    # Update symbol probabilities
+                    for symbol in symbols:
+                        self.update_symbol_probability(symbol, 1.0, 2)
+                        
+                    # Fetch data asynchronously
+                    def fetch_and_respond():
+                        try:
+                            # Fetch data
+                            market_data = self.fetch_and_process_market_data(symbols)
+                            
+                            # Publish response
+                            response = {
+                                "request_id": request_id,
+                                "timestamp": time.time(),
+                                "symbols": list(market_data.keys()),
+                                "data": {symbol: snapshot.to_dict() for symbol, snapshot in market_data.items()}
+                            }
+                            
+                            self.redis_client.publish(
+                                f"market_data_response:{request_id}",
+                                json_fast.dumps(response)
+                            )
+                            
+                            logging.info(f"Published market data response for request {request_id}")
+                        except Exception as e:
+                            logging.error(f"Error processing market data request: {str(e)}")
+                    
+                    # Submit task to thread pool
+                    self.thread_pool.submit(fetch_and_respond)
+                    
+                except Exception as e:
+                    logging.error(f"Error handling market data request: {str(e)}")
+            
+            # Subscribe to market data requests channel
+            self.redis_client.subscribe("market_data_requests", handle_market_data_request)
+            logging.info("Subscribed to market data requests channel")
+        except Exception as e:
+            logging.error(f"Error subscribing to market data requests: {str(e)}")
+
 
     def _get_symbol_lock(self, symbol: str) -> threading.Lock:
         """
@@ -849,26 +1004,48 @@ class PolygonMarketDataProvider:
     def _cache_snapshots(self, snapshots: Dict[str, MarketSnapshot]):
         """
         Cache market snapshots in Redis for distribution
-
+        
         Args:
             snapshots: Dictionary mapping symbols to market snapshots
         """
         if not self.redis_client:
             return
-
+        
         # Cache each snapshot
         for symbol, snapshot in snapshots.items():
             try:
-                # Serialize the snapshot
+                # Check if we can use shared memory for this snapshot
+                if HAS_SHARED_MEMORY and self.shared_memory_manager and hasattr(snapshot, "to_feature_array"):
+                    # Convert snapshot to feature array
+                    feature_array = snapshot.to_feature_array()
+                    
+                    # Store array in Redis with shared memory
+                    self.redis_client.set_array(
+                        f"market_snapshot_array:{symbol}",
+                        feature_array,
+                        expiry=300  # 5-minute expiry
+                    )
+                
+                # Always store the serialized snapshot for clients that don't support shared memory
                 snapshot_dict = snapshot.to_dict()
-
+                
                 # Store in Redis with expiry
                 self.redis_client.set(
                     f"market_snapshot:{symbol}",
                     json_fast.dumps(snapshot_dict),
-                    expire_seconds=300,  # 5-minute expiry
+                    expiry=300  # 5-minute expiry
                 )
-
+                
+                # Also publish to market data channel for real-time updates
+                self.redis_client.publish(
+                    "market_data_updates",
+                    json_fast.dumps({
+                        "symbol": symbol,
+                        "timestamp": time.time(),
+                        "data": snapshot_dict
+                    })
+                )
+                
             except Exception as e:
                 logging.warning(f"Error caching snapshot for {symbol} in Redis: {e}")
 
@@ -1495,27 +1672,50 @@ class PolygonMarketDataProvider:
         # Format in memory layout matching model expectations
         model_config = self.config.get("ml", {})
         use_soa_layout = model_config.get("use_soa_layout", False)
-
-        if use_soa_layout:
-            # Structure of Arrays (SOA) layout - features are grouped by type
-            # This is more efficient for some models and hardware
-            soa_features = {}
-            for symbol, feature_array in features.items():
-                # Reshape to ensure we have a 2D array
-                if len(feature_array.shape) == 1:
-                    feature_array = feature_array.reshape(1, -1)
-
-                # Store in SOA format
-                soa_features[symbol] = {
+        
+        # Prepare result dictionary
+        result = {}
+        
+        for symbol, feature_array in features.items():
+            # Reshape to ensure we have a 2D array
+            if len(feature_array.shape) == 1:
+                feature_array = feature_array.reshape(1, -1)
+                
+            # Use shared memory if available
+            if HAS_SHARED_MEMORY and self.shared_memory_manager:
+                try:
+                    # Store array in shared memory
+                    block_id = self.shared_memory_manager.put_array(feature_array)
+                    
+                    # Store metadata with shared memory reference
+                    result[symbol] = {
+                        "data": feature_array,  # Keep the data for fallback
+                        "shape": feature_array.shape,
+                        "dtype": str(feature_array.dtype),
+                        "layout": "soa" if use_soa_layout else "aos",
+                        "shared_memory": True,
+                        "block_id": block_id
+                    }
+                    continue
+                except Exception as e:
+                    logging.error(f"Error storing array in shared memory: {str(e)}")
+                    # Fall back to standard method
+            
+            # Store in appropriate format without shared memory
+            if use_soa_layout:
+                # Structure of Arrays (SOA) layout
+                result[symbol] = {
                     "data": feature_array,
                     "shape": feature_array.shape,
-                    "dtype": feature_array.dtype,
+                    "dtype": str(feature_array.dtype),
                     "layout": "soa",
+                    "shared_memory": False
                 }
-            return soa_features
-        else:
-            # Array of Structures (AOS) layout - default
-            return features
+            else:
+                # Array of Structures (AOS) layout - default
+                result[symbol] = feature_array
+                
+        return result
 
     def get_market_data_for_hft_model(
         self, symbols: List[str]
@@ -1888,16 +2088,16 @@ class PolygonMarketDataProvider:
     def cleanup(self):
         """
         Clean up resources used by the market data provider
-
+        
         This method should be called when the provider is no longer needed
         to ensure proper release of resources.
         """
         logging.info("Cleaning up PolygonMarketDataProvider resources")
-
+        
         # Stop prefetch thread
         with self.prefetch_lock:
             self.prefetch_running = False
-
+        
         if self.prefetch_thread:
             logging.debug("Waiting for prefetch thread to terminate")
             if self.prefetch_thread.is_alive():
@@ -1905,21 +2105,35 @@ class PolygonMarketDataProvider:
                     self.prefetch_thread.join(timeout=2.0)
                 except Exception as e:
                     logging.warning(f"Error waiting for prefetch thread: {e}")
-
+        
         # Shutdown thread pool
         if hasattr(self, "thread_pool"):
             self.thread_pool.shutdown(wait=True)
             logging.debug("Thread pool shut down")
-
+        
         # Close HTTP session
         if hasattr(self, "session"):
             self.session.close()
             logging.debug("HTTP session closed")
-
+        
         # Clean up Redis client
         if hasattr(self, "redis_client") and self.redis_client is not None:
             try:
-                self.redis_client.close()
+                # Publish shutdown notification
+                if self.redis_client.initialized:
+                    try:
+                        self.redis_client.publish(
+                            "market_data_provider_status",
+                            json_fast.dumps({
+                                "status": "shutdown",
+                                "timestamp": time.time()
+                            })
+                        )
+                    except Exception:
+                        pass
+                        
+                # Close client
+                self.redis_client.cleanup()
                 logging.debug("Redis client closed")
             except Exception as e:
                 logging.warning(f"Error closing Redis client: {e}")
@@ -1953,3 +2167,4 @@ class PolygonMarketDataProvider:
 
         gc.collect()
         logging.info("Memory pools and caches cleared")
+

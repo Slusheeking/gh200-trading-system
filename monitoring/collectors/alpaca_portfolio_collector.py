@@ -10,7 +10,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 # Import Alpaca API client
-from src.execution.alpaca_rest_api import AlpacaRestAPI
+from ml.fast_exit_strategy import AlpacaAPI as AlpacaRestAPI
 
 class AlpacaPortfolioCollector:
     """Collector for Alpaca portfolio metrics"""

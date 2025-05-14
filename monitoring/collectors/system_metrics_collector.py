@@ -12,6 +12,59 @@ import psutil
 from typing import Dict, Any
 
 
+# MetricsCollector for recording gauge metrics
+class MetricsCollector:
+    """Collector for recording gauge metrics"""
+    
+    def __init__(self, service_name=None, namespace=None, labels=None):
+        """
+        Initialize the metrics collector
+        
+        Args:
+            service_name: Name of the service
+            namespace: Metrics namespace
+            labels: Labels to attach to all metrics
+        """
+        self.service_name = service_name
+        self.namespace = namespace
+        self.labels = labels or {}
+        self.metrics = {}
+        self.metrics_lock = threading.Lock()
+        
+    def record_gauge(self, name, value):
+        """
+        Record a gauge metric
+        
+        Args:
+            name: Metric name
+            value: Metric value
+        """
+        with self.metrics_lock:
+            self.metrics[name] = value
+            logging.debug(f"Recorded gauge metric {name}={value}")
+            
+    def update_labels(self, labels):
+        """
+        Update labels
+        
+        Args:
+            labels: New labels to merge with existing ones
+        """
+        with self.metrics_lock:
+            self.labels.update(labels)
+            
+    def get_metrics(self):
+        """Get all recorded metrics"""
+        with self.metrics_lock:
+            return {
+                "metrics": self.metrics.copy(),
+                "labels": self.labels.copy(),
+                "service_name": self.service_name,
+                "namespace": self.namespace,
+                "timestamp": int(time.time())
+            }
+
+
 class SystemMetricsCollector:
     """Collector for system metrics (CPU, memory, disk, network)"""
 

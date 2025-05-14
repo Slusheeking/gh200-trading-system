@@ -8,19 +8,24 @@ trading workloads.
 """
 
 import os
-import time
-import numpy as np
-import logging
-from typing import List, Dict, Optional, Tuple, Any
-import threading
-import json
-import importlib.util
+import sys
 from pathlib import Path
-from contextlib import contextmanager
-from monitoring.log import logging as log_utils
-from monitoring.collectors.system_metrics_collector import MetricsCollector
-from data.polygon_market_data_provider import PolygonMarketDataProvider
-from ml.fast_exit_strategy import FastExitStrategy, Signal
+
+# Add project root to Python path to fix import issues
+project_root = Path(__file__).resolve().parents[1]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+import time  # noqa: E402
+import numpy as np  # noqa: E402
+import logging  # noqa: E402
+from typing import List, Dict, Optional, Tuple, Any  # noqa: E402
+import threading  # noqa: E402
+import json  # noqa: E402
+import importlib.util  # noqa: E402
+from contextlib import contextmanager  # noqa: E402
+from data.polygon_market_data_provider import PolygonMarketDataProvider  # noqa: E402
+from ml.fast_exit_strategy import EnhancedExitStrategy as FastExitStrategy, Signal  # noqa: E402
 
 
 # Check for module availability using importlib.util.find_spec
@@ -183,9 +188,7 @@ class GH200GBDTModel:
 
         if config is None:
             # Load HFT model specific settings from dedicated config file
-            hft_config_path = (
-                "/home/ubuntu/gh200-trading-system/config/hft_model_settings.json"
-            )
+            hft_config_path = "config/hft_model_settings.json"
             try:
                 with open(hft_config_path, "r") as f:
                     config = json.load(f)
@@ -201,6 +204,12 @@ class GH200GBDTModel:
 
         # Cache for preprocessed features between preprocessing and inference
         self.last_processed_features = None
+
+        # Redis integration
+        self.redis_client = None
+        self.redis_signal_handler = None
+        if HAS_REDIS:
+            self._initialize_redis()
 
         # Resource management
         self.model_lock = threading.RLock()
@@ -376,6 +385,120 @@ class GH200GBDTModel:
         self.cleanup_all()
         return False  # Don't suppress exceptions
 
+    def _initialize_redis(self):
+        """
+        Initialize Redis client for HFT model
+        """
+        try:
+            # Create Redis client
+            self.redis_client = RedisClient(self.config)
+
+            # Initialize client
+            if self.redis_client.initialize():
+                self.logger.info("Redis client initialized for HFT model")
+
+                # Create signal handler
+                self.redis_signal_handler = RedisSignalHandler(self.config)
+                if self.redis_signal_handler.initialize():
+                    self.logger.info("Redis signal handler initialized for HFT model")
+
+                    # Subscribe to model update notifications
+                    self._subscribe_to_model_updates()
+                else:
+                    self.logger.warning(
+                        "Failed to initialize Redis signal handler for HFT model"
+                    )
+            else:
+                self.logger.warning("Failed to initialize Redis client for HFT model")
+                self.redis_client = None
+        except Exception as e:
+            self.logger.error(
+                f"Error initializing Redis client for HFT model: {str(e)}"
+            )
+            self.redis_client = None
+
+    def _subscribe_to_model_updates(self):
+        """
+        Subscribe to model update notifications from Redis
+        """
+        if not self.redis_client:
+            return
+
+        try:
+            # Define callback for model update notifications
+            def handle_model_update(channel, message):
+                try:
+                    # Parse model update data
+                    update_data = json.loads(message)
+                    model_path = update_data.get("model_path")
+                    feature_stats_path = update_data.get("feature_stats_path")
+
+                    if model_path:
+                        self.logger.info(
+                            f"Received model update notification for path: {model_path}"
+                        )
+
+                        # Queue model hot-swap
+                        threading.Thread(
+                            target=self._process_model_update,
+                            args=(model_path, feature_stats_path),
+                            daemon=True,
+                            name="ModelUpdateHandler",
+                        ).start()
+                except Exception as e:
+                    self.logger.error(
+                        f"Error handling model update notification: {str(e)}"
+                    )
+
+            # Subscribe to model updates channel
+            self.redis_client.subscribe("hft_model_updates", handle_model_update)
+            self.logger.info("Subscribed to model updates channel")
+        except Exception as e:
+            self.logger.error(f"Error subscribing to model updates: {str(e)}")
+
+    def _process_model_update(self, model_path, feature_stats_path=None):
+        """
+        Process model update by hot-swapping the model
+
+        Args:
+            model_path: Path to the new model file
+            feature_stats_path: Optional path to feature statistics for normalization
+        """
+        try:
+            self.logger.info(f"Processing model update: {model_path}")
+
+            # Hot-swap the model
+            success = self.hot_swap_model(model_path, feature_stats_path)
+
+            # Publish result
+            if self.redis_client:
+                result = {
+                    "success": success,
+                    "model_path": model_path,
+                    "model_version": self.model_version if success else None,
+                    "timestamp": time.time(),
+                    "error": None if success else "Model hot-swap failed",
+                }
+                self.redis_client.publish("hft_model_status", json.dumps(result))
+
+            self.logger.info(f"Model update {'succeeded' if success else 'failed'}")
+        except Exception as e:
+            self.logger.error(f"Error processing model update: {str(e)}")
+
+            # Report error
+            if self.redis_client:
+                self.redis_client.publish(
+                    "hft_model_status",
+                    json.dumps(
+                        {
+                            "success": False,
+                            "model_path": model_path,
+                            "error": str(e),
+                            "timestamp": time.time(),
+                        }
+                    ),
+                )
+
     def _init_cuda_resources(self):
         """Initialize CUDA resources including memory pools, streams, and context."""
         if not self.use_gpu:
@@ -398,11 +521,36 @@ class GH200GBDTModel:
             if HAS_CUPY:
                 cp.cuda.runtime.setDevice(self.gpu_device_id)
 
+                # Initialize shared memory manager if available
+                self.shared_memory_manager = None
+                if HAS_SHARED_MEMORY:
+                    try:
+                        self.shared_memory_manager = get_shared_memory_manager(self.config)
+                        self.logger.info("Initialized shared memory manager for HFT model")
+                    except Exception as e:
+                        self.logger.error(f"Failed to initialize shared memory manager: {str(e)}")
+                
                 # Initialize memory pools
                 if self.gh200_optimizations:
-                    # Create memory pool with specified size limit
-                    self.memory_pool = cp.cuda.MemoryPool()
-                    cp.cuda.set_allocator(self.memory_pool.malloc)
+                    # Use shared GPU memory pool if available
+                    if HAS_SHARED_MEMORY and self.shared_memory_manager:
+                        try:
+                            self.memory_pool = SharedGPUMemoryPool(
+                                initial_size_mb=self.gpu_memory_pool_size // (1024 * 1024),
+                                device_id=self.gpu_device_id
+                            )
+                            self.logger.info("Initialized shared GPU memory pool for HFT model")
+                        except Exception as e:
+                            self.logger.error(f"Failed to initialize shared GPU memory pool: {str(e)}")
+                            # Fall back to regular GPU memory pool
+                            self.memory_pool = cp.cuda.MemoryPool()
+                            cp.cuda.set_allocator(self.memory_pool.malloc)
+                            self.logger.info("Initialized regular GPU memory pool for HFT model")
+                    else:
+                        # Regular GPU memory pool
+                        self.memory_pool = cp.cuda.MemoryPool()
+                        cp.cuda.set_allocator(self.memory_pool.malloc)
+                        self.logger.info("Initialized GPU memory pool for HFT model")
 
                     if self.use_pinned_memory:
                         self.pinned_memory_pool = cp.cuda.PinnedMemoryPool()
@@ -554,6 +702,14 @@ class GH200GBDTModel:
             if not Path(model_path).exists():
                 raise FileNotFoundError(f"Model file not found: {model_path}")
 
+            # Store model path in Redis for other components to access
+            if self.redis_client:
+                self.redis_client.set(
+                    "hft_model:current_path",
+                    model_path,
+                    expiry=86400,  # 24 hours
+                )
+
             self.model_path = model_path
             self.model_version += 1  # Increment model version
 
@@ -637,6 +793,10 @@ class GH200GBDTModel:
                 self.logger.info(f"Model loading time: {load_time:.2f} seconds")
 
                 self.is_loaded = True
+
+                # Store model metadata in Redis
+                if self.redis_client:
+                    self._cache_model_metadata()
                 self.logger.info(
                     f"Model loaded successfully. Features: {len(self.feature_names)}. "
                     f"Using: {'Treelite' if self.predictor else 'TensorRT' if self.trt_engine else 'LightGBM'}"
@@ -655,6 +815,53 @@ class GH200GBDTModel:
                 raise RuntimeError(
                     f"Failed to load GBDT model from {self.model_path}"
                 ) from e
+
+    def _cache_model_metadata(self):
+        """
+        Cache model metadata in Redis for other components to access
+        """
+        if not self.redis_client:
+            return
+
+        try:
+            # Build model metadata
+            metadata = {
+                "model_path": self.model_path,
+                "model_version": self.model_version,
+                "num_features": len(self.feature_names),
+                "feature_names": self.feature_names,
+                "use_gpu": self.use_gpu,
+                "use_int8": self.use_int8,
+                "use_soa_layout": self.use_soa_layout,
+                "use_tensorrt": bool(self.trt_engine),
+                "use_treelite": bool(self.predictor),
+                "timestamp": time.time(),
+                "last_inference": 0,
+                "avg_latency_ms": 0,
+                "p99_latency_ms": 0,
+                "throughput": 0,
+            }
+
+            # Store in Redis with 24-hour expiry
+            self.redis_client.set(
+                "hft_model:metadata",
+                json.dumps(metadata),
+                expiry=86400,  # 24 hours
+            )
+
+            # Also store individual feature names for easier access
+            for i, feature_name in enumerate(self.feature_names):
+                self.redis_client.set(
+                    f"hft_model:feature:{i}",
+                    feature_name,
+                    expiry=86400,  # 24 hours
+                )
+
+            self.logger.info(
+                f"Cached model metadata in Redis with {len(self.feature_names)} features"
+            )
+        except Exception as e:
+            self.logger.warning(f"Error caching model metadata in Redis: {str(e)}")
 
     def _warmup_model(self, num_samples: int = 10):
         """
@@ -2021,6 +2228,10 @@ class GH200GBDTModel:
             f"TensorRT inference time: {latency_ms:.3f} ms for batch size {features_array.shape[0]}"
         )
 
+        # Update Redis metrics if available
+        if self.redis_client:
+            self._update_inference_metrics_redis(features_array.shape[0], latency_ms)
+
         # Reshape to (batch_size, 1) for consistency
         return output_buffer.reshape(-1, 1)
 
@@ -2070,6 +2281,10 @@ class GH200GBDTModel:
         self.logger.debug(
             f"Treelite inference time: {latency_ms:.3f} ms for batch size {features_array.shape[0]}"
         )
+
+        # Update Redis metrics if available
+        if self.redis_client:
+            self._update_inference_metrics_redis(features_array.shape[0], latency_ms)
 
         # Reshape to (batch_size, 1) for consistency
         return results.reshape(-1, 1)
@@ -2277,6 +2492,48 @@ class GH200GBDTModel:
 
         # Reshape to (batch_size, 1) for consistency
         return final_predictions_np.reshape(-1, 1)
+
+    def _update_inference_metrics_redis(self, batch_size: int, latency_ms: float):
+        """
+        Update inference metrics in Redis
+
+        Args:
+            batch_size: Size of the batch
+            latency_ms: Inference time in milliseconds
+        """
+        if not self.redis_client:
+            return
+
+        try:
+            with self.stats_lock:
+                # Update model metrics in Redis
+                metrics = {
+                    "last_inference": time.time(),
+                    "batch_size": batch_size,
+                    "latency_ms": latency_ms,
+                    "avg_latency_ms": self.total_inference_time_ms
+                    / max(1, self.inference_count),
+                    "p50_latency_ms": self.latency_p50,
+                    "p99_latency_ms": self.latency_p99,
+                    "inference_count": self.inference_count,
+                    "throughput": self.inference_count
+                    / max(1, (time.time() - self.last_warmup_time))
+                    if hasattr(self, "last_warmup_time")
+                    else 0,
+                }
+
+                # Store in Redis with 5-minute expiry
+                self.redis_client.set(
+                    "hft_model:metrics",
+                    json.dumps(metrics),
+                    expiry=300,  # 5 minutes
+                )
+
+                # Publish metrics update for real-time monitoring
+                metrics["model_version"] = self.model_version
+                self.redis_client.publish("hft_model_metrics", json.dumps(metrics))
+        except Exception as e:
+            self.logger.debug(f"Error updating inference metrics in Redis: {str(e)}")
 
     def _record_inference_metrics(self, batch_size: int, latency_ms: float):
         """
@@ -2537,9 +2794,7 @@ class GH200GBDTModel:
         """
         if config is None:
             # Load HFT model specific settings from dedicated config file
-            hft_config_path = (
-                "/home/ubuntu/gh200-trading-system/config/hft_model_settings.json"
-            )
+            hft_config_path = "config/hft_model_settings.json"
             try:
                 with open(hft_config_path, "r") as f:
                     config = json.load(f)
@@ -2557,7 +2812,7 @@ class GH200GBDTModel:
             # Initialize market data provider
             self.logger.info("Initializing Polygon Market Data Provider for HFT model")
             # Load polygon provider specific settings from dedicated config file
-            polygon_config_path = "/home/ubuntu/gh200-trading-system/config/polygon_provider_settings.json"
+            polygon_config_path = "config/polygon_provider_settings.json"
             try:
                 with open(polygon_config_path, "r") as f:
                     polygon_config = json.load(f)
@@ -2578,7 +2833,7 @@ class GH200GBDTModel:
             # Initialize fast exit strategy
             self.logger.info("Initializing Fast Exit Strategy for HFT model")
             # Load fast exit strategy specific settings from dedicated config file
-            exit_strategy_config_path = "/home/ubuntu/gh200-trading-system/config/fast_exit_strategy_settings.json"
+            exit_strategy_config_path = "config/fast_exit_strategy_settings.json"
             try:
                 with open(exit_strategy_config_path, "r") as f:
                     exit_strategy_config = json.load(f)
@@ -2643,8 +2898,26 @@ class GH200GBDTModel:
 
             # Collect all features into a single batch
             for symbol, features in model_ready_data.items():
+                # Handle shared memory data
+                if isinstance(features, dict) and features.get("shared_memory", False) and HAS_SHARED_MEMORY and self.shared_memory_manager:
+                    try:
+                        # Get data from shared memory
+                        block_id = features.get("block_id")
+                        shape = features.get("shape")
+                        dtype = features.get("dtype")
+                        
+                        if block_id and shape and dtype:
+                            # Get array from shared memory
+                            feature_array = self.shared_memory_manager.get_array(block_id, shape, dtype)
+                        else:
+                            # Fall back to regular data
+                            feature_array = features.get("data", np.array([]))
+                    except Exception as e:
+                        self.logger.error(f"Error getting data from shared memory: {str(e)}")
+                        # Fall back to regular data
+                        feature_array = features.get("data", np.array([]))
                 # Handle both dictionary format (from SOA layout) and direct arrays
-                if isinstance(features, dict) and "data" in features:
+                elif isinstance(features, dict) and "data" in features:
                     feature_array = features["data"]
                 else:
                     feature_array = features
@@ -2785,6 +3058,67 @@ class GH200GBDTModel:
 
         return entry_signals, exit_signals
 
+    def _get_cached_features(self, symbols: List[str]) -> Dict[str, np.ndarray]:
+        """
+        Get cached feature arrays from Redis
+
+        Args:
+            symbols: List of symbols to get features for
+
+        Returns:
+            Dictionary mapping symbols to feature arrays
+        """
+        cached_features = {}
+
+        if not self.redis_client:
+            return cached_features
+
+        for symbol in symbols:
+            try:
+                # Get features from Redis
+                features_json = self.redis_client.get(f"hft_model:features:{symbol}")
+
+                if features_json:
+                    # Deserialize features
+                    features_data = json.loads(features_json)
+                    features = np.array(
+                        features_data.get("features", []), dtype=np.float32
+                    )
+
+                    # Check if features are valid
+                    if len(features) == 16:  # Expected number of features
+                        cached_features[symbol] = features
+            except Exception as e:
+                self.logger.debug(
+                    f"Error getting cached features for {symbol}: {str(e)}"
+                )
+
+        return cached_features
+
+    def _cache_features(self, symbol: str, features: np.ndarray):
+        """
+        Cache feature array in Redis
+
+        Args:
+            symbol: Symbol to cache features for
+            features: Feature array
+        """
+        if not self.redis_client:
+            return
+
+        try:
+            # Convert to list for JSON serialization
+            features_list = features.tolist()
+
+            # Store in Redis with short expiry (10 seconds)
+            self.redis_client.set(
+                f"hft_model:features:{symbol}",
+                json.dumps({"features": features_list, "timestamp": time.time()}),
+                expiry=10,  # 10 seconds expiry
+            )
+        except Exception as e:
+            self.logger.debug(f"Error caching features for {symbol}: {str(e)}")
+
     def _generate_entry_signals(
         self, symbols: List[str], market_data: Dict[str, Any]
     ) -> List[Signal]:
@@ -2800,6 +3134,7 @@ class GH200GBDTModel:
         """
         # Fetch market data optimized for HFT model
         feature_arrays = {}
+        default_rsi = self.config.get("default_rsi", 50.0)
         for symbol in symbols:
             if symbol in market_data.get("symbol_data", {}):
                 symbol_data = market_data["symbol_data"][symbol]
@@ -2813,7 +3148,7 @@ class GH200GBDTModel:
                         symbol_data.get("low_price", 0.0),
                         symbol_data.get("volume", 0),
                         symbol_data.get("vwap", 0.0),
-                        symbol_data.get("rsi_14", 50.0),
+                        symbol_data.get("rsi_14", default_rsi),
                         symbol_data.get("macd", 0.0),
                         symbol_data.get("bb_upper", 0.0),
                         symbol_data.get("bb_middle", 0.0),
@@ -2838,21 +3173,25 @@ class GH200GBDTModel:
                 pred = self.predict(features)
 
                 # Generate signal if prediction exceeds threshold
-                if pred[0][0] > 0.7:  # Entry threshold
+                entry_threshold = self.config.get("entry_threshold", 0.7)
+                position_size = self.config.get("position_size", 10000.0)
+                stop_loss_pct = self.config.get("stop_loss_pct", 0.98)
+                take_profit_pct = self.config.get("take_profit_pct", 1.03)
+                if pred[0][0] > entry_threshold:  # Entry threshold
                     # Create entry signal
                     signal = Signal(
                         symbol=symbol,
                         type="BUY",  # Simplified to BUY for now
                         price=market_data["symbol_data"][symbol].get("last_price", 0.0),
-                        position_size=10000.0,  # Fixed position size for now
+                        position_size=position_size,  # Fixed position size for now
                         stop_loss=market_data["symbol_data"][symbol].get(
                             "last_price", 0.0
                         )
-                        * 0.98,  # 2% stop loss
+                        * stop_loss_pct,  # 2% stop loss
                         take_profit=market_data["symbol_data"][symbol].get(
                             "last_price", 0.0
                         )
-                        * 1.03,  # 3% take profit
+                        * take_profit_pct,  # 3% take profit
                         confidence=float(pred[0][0]),
                         timestamp=market_data.get(
                             "timestamp", int(time.time() * 1_000_000_000)
@@ -2864,6 +3203,10 @@ class GH200GBDTModel:
 
                     # Update active positions
                     self._add_active_position(signal)
+
+                    # Publish signal to Redis if available
+                    if self.redis_signal_handler:
+                        self.redis_signal_handler.publish_signal(signal)
             except Exception as e:
                 self.logger.error(f"Error generating entry signal for {symbol}: {e}")
 

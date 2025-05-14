@@ -14,13 +14,12 @@ import json
 from typing import Dict, Any, List, Optional
 
 # Import collectors
-from src.monitoring.collectors.system_metrics_collector import SystemMetricsCollector
-from src.monitoring.collectors.hardware_metrics_collector import HardwareMetricsCollector
-from src.monitoring.collectors.log_collector import LogCollector
-from src.monitoring.collectors.notification_collector import NotificationCollector
-from src.monitoring.collectors.alpaca_portfolio_collector import AlpacaPortfolioCollector
-from src.monitoring.collectors.trade_metrics_collector import TradeMetricsCollector
-from src.monitoring.collectors.yahoo_finance_client import YahooFinanceClient
+from monitoring.collectors.system_metrics_collector import SystemMetricsCollector
+from monitoring.collectors.hardware_metrics_collector import HardwareMetricsCollector
+from monitoring.collectors.log_collector import LogCollector
+from monitoring.collectors.notification_collector import NotificationCollector
+from monitoring.collectors.alpaca_portfolio_collector import AlpacaPortfolioCollector
+from monitoring.collectors.trade_metrics_collector import TradeMetricsCollector
 
 class SystemExporter:
     """
@@ -46,7 +45,6 @@ class SystemExporter:
         self.notification_collector = NotificationCollector(config)
         self.alpaca_portfolio_collector = AlpacaPortfolioCollector(config)
         self.trade_metrics_collector = TradeMetricsCollector(config)
-        self.yahoo_finance_client = YahooFinanceClient(config)
         
         logging.info("System exporter initialized")
     
